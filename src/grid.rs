@@ -1,4 +1,3 @@
-use crate::camera::MainCamera;
 use crate::common::{Selectable, WorldPosition};
 use bevy::prelude::*;
 
