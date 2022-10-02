@@ -5,14 +5,14 @@ mod common;
 mod grid;
 mod units;
 use camera::{CameraPlugin, MainCamera};
-use common::{Selectable, WorldPosition};
-use grid::{GridPlugin, GridPosition};
+use common::{Selectable, WorldPosition, Label};
+use grid::{GridPlugin, Tile};
 use units::UnitsPlugin;
 
 fn get_clicked_entity(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(&WorldPosition, &GridPosition), With<Selectable>>,
+    entities: Query<(&WorldPosition, &Label),(With <Selectable>, Without<Tile>)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
@@ -41,16 +41,16 @@ fn get_clicked_entity(
             let world_pos: Vec2 = world_pos.truncate();
             //get closest
             let mut min_dist = 32.0;
-            let mut selection: Option<&GridPosition> = None;
-            for (world, grid) in entities.into_iter() {
+            let mut selection: Option<&Label> = None;
+            for (world, label) in entities.into_iter() {
                 let dist = world_pos.distance(Vec2::new(world.x, world.y));
                 if dist < min_dist {
                     min_dist = dist;
-                    selection = Some(grid);
+                    selection = Some(label);
                 }
             }
             if let Some(result) = selection {
-                println!("{:?}", result);
+                println!("{}", result.text);
             }
         }
     }

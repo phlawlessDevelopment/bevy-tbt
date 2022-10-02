@@ -1,4 +1,4 @@
-use crate::common::{Selectable, WorldPosition};
+use crate::common::{Label, Selectable, WorldPosition};
 use bevy::prelude::*;
 
 pub struct GridPlugin;
@@ -10,27 +10,25 @@ pub struct GridPosition {
 }
 
 #[derive(Component)]
-struct Tile;
+pub struct Tile;
 
 fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
     for i in 0..16 {
+        let x = (i / 4) as f32 * 64.0;
+        let y = (i % 4) as f32 * 64.0;
         commands
             .spawn_bundle(SpriteBundle {
                 texture: asset_server.load("sprites/dice_empty.png"),
-                transform: Transform::from_translation(Vec3::new(
-                    (i / 4) as f32 * 64.0,
-                    (i % 4) as f32 * 64.0,
-                    0.0,
-                )),
+                transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
                 ..default()
             })
             .insert(Selectable)
+            .insert(Label {
+                text: String::from(format!("tile {:?}", [i / 4, i % 4])),
+            })
             .insert(Tile)
             .insert(GridPosition { x: i / 4, y: i % 4 })
-            .insert(WorldPosition {
-                x: (i / 4) as f32 * 64.0,
-                y: (i % 4) as f32 * 64.0,
-            });
+            .insert(WorldPosition { x, y });
     }
 }
 

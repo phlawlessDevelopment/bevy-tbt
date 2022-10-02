@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::common::{Selectable, WorldPosition};
+use crate::common::{Selectable, WorldPosition, Label};
 use crate::grid::GridPosition;
 
 pub struct UnitsPlugin;
@@ -25,9 +25,14 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
                 0 as f32 * 64.0,
                 0.0,
             )),
+            sprite:Sprite{
+                color:Color::Rgba { red: 0.0, green: 1.0, blue: 0.0, alpha: 1.0 },
+                ..default()
+            },
             ..default()
         })
         .insert(Selectable)
+        .insert(Label{text:String::from("unit")})
         .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
         .insert(GridPosition { x: 0, y: 0 })
