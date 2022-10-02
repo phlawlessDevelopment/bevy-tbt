@@ -1,13 +1,15 @@
-use bevy::{prelude::*, render::camera::RenderTarget, utils::label};
+use bevy::{prelude::*, render::camera::RenderTarget};
 
 mod camera;
 mod common;
 mod grid;
 mod units;
+mod states;
 use camera::{CameraPlugin, MainCamera};
 use common::{Selectable, WorldPosition, Label};
 use grid::{GridPlugin, Tile};
 use units::UnitsPlugin;
+use states::{GameState,Turn,TurnPhase};
 
 fn get_clicked_entity(
     mouse_input: Res<Input<MouseButton>>,
@@ -56,5 +58,8 @@ fn main() {
         .add_plugin(GridPlugin)
         .add_plugin(UnitsPlugin)
         .add_system(get_clicked_entity)
+        .add_state(GameState::Game)
+        .add_state(Turn::Player)
+        .add_state(TurnPhase::Start)
         .run();
 }
