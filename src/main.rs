@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::camera::RenderTarget};
+use bevy::{prelude::*, render::camera::RenderTarget, utils::label};
 
 mod camera;
 mod common;
@@ -40,18 +40,12 @@ fn get_clicked_entity(
             // reduce it to a 2D value
             let world_pos: Vec2 = world_pos.truncate();
             //get closest
-            let mut min_dist = 32.0;
-            let mut selection: Option<&Label> = None;
-            for (world, label) in entities.into_iter() {
-                let dist = world_pos.distance(Vec2::new(world.x, world.y));
-                if dist < min_dist {
-                    min_dist = dist;
-                    selection = Some(label);
-                }
-            }
-            if let Some(result) = selection {
-                println!("{}", result.text);
-            }
+            let min_dist = 32.0;
+            // let mut selection: Option<&Label> = None;
+            let selection = entities.into_iter().find(|(world,label)|world_pos.distance(Vec2::new(world.x, world.y))<=min_dist);
+            if let Some((world,label)) = selection{
+                    println!("{:?} {}", world,label.text);
+                } 
         }
     }
 }
