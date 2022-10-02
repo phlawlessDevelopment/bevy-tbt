@@ -4,6 +4,7 @@ use bevy::render::camera::RenderTarget;
 use crate::camera::MainCamera;
 use crate::common::{Label, Selectable, WorldPosition};
 use crate::grid::{GridPosition, Tile};
+use crate::states::TurnPhase;
 
 pub struct UnitsPlugin;
 
@@ -97,5 +98,6 @@ fn get_clicked_unit(
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(make_units);
+        app.add_system_set(SystemSet::on_update(TurnPhase::Move).with_system(get_clicked_unit));
     }
 }
