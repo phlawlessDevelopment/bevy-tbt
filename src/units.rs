@@ -94,7 +94,6 @@ fn select_move(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     tiles: Query<(&GridPosition, &WorldPosition), With<Tile>>,
-    units: Query<(Entity, &GridPosition, &WorldPosition), Without<Tile>>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
     movements: Query<(Entity, &Movement)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
