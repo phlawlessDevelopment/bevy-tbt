@@ -21,16 +21,8 @@ struct Health {
     pub value: i32,
 }
 
-fn random_starting_unit(
-    mut commands: Commands,
-    units: Query<Entity, With<Movement>>,
-) {
-    // todo : replace with click to select
-    println!("{:?}", units.is_empty());
-    if let Some(unit) = units.into_iter().next() {
-        println!("inner");
-        commands.insert_resource(ActiveUnit { value: unit.id() });
-    }
+fn setup_active(mut commands: Commands) {
+    commands.insert_resource(ActiveUnit { ..default() });
 }
 
 fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -67,82 +59,141 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
     // }
 }
-fn click_tile(
+fn get_mouse_position(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(&GridPosition, &WorldPosition), With<Tile>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+) -> Vec2 {
+    // assuming there is exactly one main camera entity, so query::single() is OK
+    let (camera, camera_transform) = q_camera.single();
+
+    // get the window that the camera is displaying to (or the primary window)
+    let wnd = if let RenderTarget::Window(id) = camera.target {
+        windows.get(id).unwrap()
+    } else {
+        windows.get_primary().unwrap()
+    };
+
+    // check if the cursor is inside the window and get its position
+    if let Some(screen_pos) = wnd.cursor_position() {
+        // get the size of the window
+        let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+        // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
+        let ndc = (screen_pos / window_size) * 2.0 - Vec2::ONE;
+        // matrix for undoing the projection and camera transform
+        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
+        // use it to convert ndc to world-space coordinates
+        let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
+        // reduce it to a 2D value
+        return world_pos.truncate();
+    }
+    return Vec2::ZERO;
+}
+
+fn select_move(
+    mouse_input: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    tiles: Query<(&GridPosition, &WorldPosition), With<Tile>>,
+    units: Query<(Entity, &GridPosition, &WorldPosition), Without<Tile>>,
+    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
+    movements: Query<(Entity, &Movement)>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    active: Res<ActiveUnit>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
-        // assuming there is exactly one main camera entity, so query::single() is OK
-        let (camera, camera_transform) = q_camera.single();
-
-        // get the window that the camera is displaying to (or the primary window)
-        let wnd = if let RenderTarget::Window(id) = camera.target {
-            windows.get(id).unwrap()
-        } else {
-            windows.get_primary().unwrap()
-        };
-
-        // check if the cursor is inside the window and get its position
-        if let Some(screen_pos) = wnd.cursor_position() {
-            // get the size of the window
-            let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-            // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
-            let ndc = (screen_pos / window_size) * 2.0 - Vec2::ONE;
-            // matrix for undoing the projection and camera transform
-            let ndc_to_world =
-                camera_transform.compute_matrix() * camera.projection_matrix().inverse();
-            // use it to convert ndc to world-space coordinates
-            let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
-            // reduce it to a 2D value
-            let world_pos: Vec2 = world_pos.truncate();
-            //get closest
-            let min_dist = 32.0;
-            // let mut selection: Option<&Label> = None;
-            let selection = entities
+        let mouse_pos = get_mouse_position(mouse_input, windows, q_camera);
+        //get closest
+        let min_dist = 32.0;
+        // let mut selection: Option<&Label> = None;
+        let selection = tiles
+            .into_iter()
+            .find(|(_grid, world)| mouse_pos.distance(Vec2::new(world.x, world.y)) <= min_dist);
+        if let Some((grid, _world)) = selection {
+            let active = active.as_ref();
+            if let Some((_e, active_grid)) = unit_grids
                 .into_iter()
-                .find(|(grid, world)| world_pos.distance(Vec2::new(world.x, world.y)) <= min_dist);
-            if let Some((grid, world)) = selection {
-                println!("{:?} {:?}", world, grid);
+                .find(|(e, _g)| e.id() == active.value)
+            {
+                if let Some((_e, active_movement)) =
+                    movements.into_iter().find(|(e, _m)| e.id() == active.value)
+                {
+                    let dist = calculate_manhattan_distance(&active_grid, grid);
+                    if dist >= 1 && dist <= active_movement.distance {
+                        println!("Valid");
+                    }
+                }
             }
         }
     }
 }
+
+fn click_unit(
+    mouse_input: Res<Input<MouseButton>>,
+    windows: Res<Windows>,
+    entities: Query<(Entity, &WorldPosition), With<Movement>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut active: ResMut<ActiveUnit>,
+    mut phase: ResMut<State<TurnPhase>>,
+) {
+    if mouse_input.just_pressed(MouseButton::Left) {
+        let mouse_pos = get_mouse_position(mouse_input, windows, q_camera);
+        //get closest
+        let min_dist = 32.0;
+        // let mut selection: Option<&Label> = None;
+        let selection = entities
+            .into_iter()
+            .find(|(_e, world)| mouse_pos.distance(Vec2::new(world.x, world.y)) <= min_dist);
+        if let Some((e, _world)) = selection {
+            active.value = e.id();
+            phase.set(TurnPhase::Move).unwrap();
+        }
+    }
+}
+
 fn highlight_reachable_tiles(
     mut tiles: Query<(&GridPosition, &mut Sprite), With<Tile>>,
-    unit_grids: Query<(Entity,&GridPosition), Without<Tile>>,
+    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
     movements: Query<(Entity, &Movement)>,
     active: Res<ActiveUnit>,
 ) {
     let active = active.as_ref();
-    if let Some((_e,active_grid)) = unit_grids.into_iter().find(|(e,_g)| e.id() == active.value) {
-        if let Some((_e,active_movement)) = movements.into_iter().find(|(e,_m)| e.id() == active.value) {
-            if let Some((_grid, mut sprite)) = tiles
-                .iter_mut()
-                .find(|(grid, _s)| calculate_grid_distance(&active_grid, grid) <= active_movement.distance)
-            {
+    if let Some((_e, active_grid)) = unit_grids
+        .into_iter()
+        .find(|(e, _g)| e.id() == active.value)
+    {
+        if let Some((_e, active_movement)) =
+            movements.into_iter().find(|(e, _m)| e.id() == active.value)
+        {
+            for (_grid, mut sprite) in tiles.iter_mut().filter(|(grid, _s)| {
+                calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance
+            }) {
                 sprite.color.set_r(1.0);
                 sprite.color.set_a(0.3);
             }
         }
     }
 }
-fn calculate_grid_distance(a: &GridPosition, b: &GridPosition) -> i32 {
-    let dx = i32::abs(b.x as i32 - a.x as i32);
-    let dy = i32::abs(b.y as i32 - a.y as i32);
-    let min = std::cmp::min(dx, dy);
-    let max = std::cmp::max(dx, dy);
-    ((2.0 as f64).sqrt() * ((min + max - min) as f64)) as i32
+fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
+    for mut sprite in tiles.iter_mut() {
+        sprite.color.set_r(1.0);
+        sprite.color.set_g(1.0);
+        sprite.color.set_b(1.0);
+        sprite.color.set_a(1.0);
+    }
+}
+fn calculate_manhattan_distance(a: &GridPosition, b: &GridPosition) -> i32 {
+    i32::abs(b.x - a.x) + i32::abs(b.y - a.y)
 }
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(make_units);
-        app.add_startup_system(random_starting_unit.after(make_units));
+        app.add_startup_system(setup_active);
         app.add_system_set(
-            SystemSet::on_update(TurnPhase::Move)
-                .with_system(click_tile)
-                .with_system(highlight_reachable_tiles),
+            SystemSet::on_enter(TurnPhase::Move)
+                .with_system(clear_highlighted_tiles)
+                .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
         );
+        app.add_system_set(SystemSet::on_update(TurnPhase::Move).with_system(select_move));
+        app.add_system_set(SystemSet::on_update(TurnPhase::Select).with_system(click_unit));
     }
 }

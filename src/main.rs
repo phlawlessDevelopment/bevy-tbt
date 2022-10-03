@@ -62,6 +62,6 @@ fn main() {
         .add_system(get_clicked_entity)
         .add_state(GameState::Game)
         .add_state(Turn::Player)
-        .add_state(TurnPhase::Move)
+        .add_state(TurnPhase::Select)
         .run();
 }

@@ -5,8 +5,8 @@ pub struct GridPlugin;
 
 #[derive(Component, Debug)]
 pub struct GridPosition {
-    pub x: u8,
-    pub y: u8,
+    pub x:i32,
+    pub y: i32,
 }
 
 #[derive(Component)]

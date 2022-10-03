@@ -15,6 +15,7 @@ pub enum Turn {
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub enum TurnPhase {
     None,
+    Select,
     Move,
     Attack,
 }
