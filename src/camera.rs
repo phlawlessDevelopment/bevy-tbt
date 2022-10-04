@@ -6,14 +6,7 @@ pub struct MainCamera;
 
 fn setup(mut commands: Commands) {
     commands
-        .spawn_bundle(Camera2dBundle {
-            transform: Transform::from_translation(Vec3 {
-                x: -(9.0 * 64.0),
-                y: -(9.0 * 64.0),
-                z: 0.0,
-            }),
-            ..default()
-        })
+        .spawn_bundle(Camera2dBundle::default())
         .insert(MainCamera);
 }
 

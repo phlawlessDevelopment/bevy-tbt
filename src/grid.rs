@@ -14,13 +14,12 @@ pub struct Tile {
     pub blocked: bool,
 }
 
-
 #[derive(Default)]
 pub struct SelectedPath {
     pub tiles: Vec<(i32, i32)>,
 }
 
-#[derive(Default,Debug)]
+#[derive(Default, Debug)]
 pub struct SelectedTile {
     pub x: i32,
     pub y: i32,
@@ -28,8 +27,8 @@ pub struct SelectedTile {
 
 fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
     for i in 0..81 {
-        let x = (i / 9) as f32 * 64.0;
-        let y = (i % 9) as f32 * 64.0;
+        let x = ((i / 9) as f32 * 64.0) - (4.5 * 64.0);
+        let y = (i % 9) as f32 * 64.0 - (4.5 * 64.0);
         commands
             .spawn_bundle(SpriteBundle {
                 texture: asset_server.load("sprites/dice_empty.png"),
@@ -38,19 +37,17 @@ fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .insert(Selectable)
             .insert(Label {
-                text: String::from(format!("tile {:?}", [i / 4, i % 4])),
+                text: String::from(format!("tile {:?}", [i / 9, i % 9])),
             })
             .insert(Tile { blocked: false })
-            .insert(GridPosition { x: i / 4, y: i % 4 });
+            .insert(GridPosition { x: i / 9, y: i % 9 });
     }
 }
 
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .init_resource::<SelectedPath>()
-        .init_resource::<SelectedTile>()
-        .add_startup_system(make_tiles);
-
+        app.init_resource::<SelectedPath>()
+            .init_resource::<SelectedTile>()
+            .add_startup_system(make_tiles);
     }
 }

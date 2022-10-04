@@ -34,19 +34,19 @@ fn move_active_unit(
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
-    if let Some((_e, mut transform,mut grid)) = units
-        .iter_mut()
-        .find(|(e, _t,_g)| e.id() == active.value)
+    if let Some((_e, mut transform, mut grid)) =
+        units.iter_mut().find(|(e, _t, _g)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
-            let direction = Vec3::new(next_tile.0 as f32 * 64.0, next_tile.1 as f32 * 64.0, 0.0)
+            let direction = Vec3::new(next_tile.0 as f32 * 64.0-(4.5*64.0), next_tile.1 as f32 * 64.0-(4.5*64.0), 0.0)
                 - transform.translation;
 
             if direction.length() > 1.0 {
                 transform.translation += direction.normalize() * time.delta_seconds() * 64.0;
             } else {
-                transform.translation = Vec3::new(next_tile.0 as f32 * 64.0, next_tile.1 as f32 * 64.0, 0.0);
+                transform.translation =
+                    Vec3::new(next_tile.0 as f32 * 64.0 -(4.5*64.0), next_tile.1 as f32 * 64.0-(4.5*64.0), 0.0);
                 grid.x = next_tile.0;
                 grid.y = next_tile.1;
                 should_pop = true;
@@ -67,8 +67,8 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn_bundle(SpriteBundle {
             texture: asset_server.load("sprites/chess_pawn.png"),
             transform: Transform::from_translation(Vec3::new(
-                0 as f32 * 64.0,
-                0 as f32 * 64.0,
+                0 as f32 * 64.0 - (4.5 * 64.0),
+                0 as f32 * 64.0 - (4.5 * 64.0),
                 0.0,
             )),
             sprite: Sprite {
@@ -221,8 +221,8 @@ fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
         sprite.color.set_a(1.0);
     }
 }
-fn clear_active_unit(mut active: ResMut<ActiveUnit>,) {
-   active.value = 0;
+fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
+    active.value = 0;
 }
 fn calculate_manhattan_distance(a: &GridPosition, b: &GridPosition) -> i32 {
     i32::abs(b.x - a.x) + i32::abs(b.y - a.y)
@@ -239,7 +239,7 @@ impl Plugin for UnitsPlugin {
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit)
                     .with_system(clear_active_unit)
-                    .with_system(clear_highlighted_tiles)
+                    .with_system(clear_highlighted_tiles),
             )
             .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
             .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
