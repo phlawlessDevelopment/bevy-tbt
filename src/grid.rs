@@ -27,9 +27,9 @@ pub struct SelectedTile {
 }
 
 fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
-    for i in 0..16 {
-        let x = (i / 4) as f32 * 64.0;
-        let y = (i % 4) as f32 * 64.0;
+    for i in 0..81 {
+        let x = (i / 9) as f32 * 64.0;
+        let y = (i % 9) as f32 * 64.0;
         commands
             .spawn_bundle(SpriteBundle {
                 texture: asset_server.load("sprites/dice_empty.png"),
