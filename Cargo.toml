@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.8", features = ["wayland","dynamic"] }
+priority-queue = "1.2.3"

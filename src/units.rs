@@ -1,15 +1,16 @@
-use core::num;
-
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
 use crate::camera::MainCamera;
-use crate::common::{Label, Selectable, WorldPosition};
-use crate::grid::{GridPosition, Tile};
+use crate::common::{Label, Selectable};
+use crate::grid::{GridPosition, SelectedTile, Tile};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 
 pub struct UnitsPlugin;
+
+#[derive(Component, Debug)]
+pub struct Unit;
 
 #[derive(Component, Debug)]
 pub struct Movement {
@@ -46,21 +47,17 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
             ..default()
         })
+        .insert(Unit)
         .insert(Selectable)
         .insert(Label {
             text: String::from("unit"),
         })
         .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
-        .insert(GridPosition { x: 0, y: 0 })
-        .insert(WorldPosition {
-            x: 0 as f32 * 64.0,
-            y: 0 as f32 * 64.0,
-        });
+        .insert(GridPosition { x: 0, y: 0 });
     // }
 }
 fn get_mouse_position(
-    mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) -> Vec2 {
@@ -93,32 +90,37 @@ fn get_mouse_position(
 fn select_move(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
-    tiles: Query<(&GridPosition, &WorldPosition), With<Tile>>,
-    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
+    tiles: Query<(&GridPosition, &mut Transform), With<Tile>>,
+    unit_grids: Query<(Entity, &GridPosition), With<Unit>>,
     movements: Query<(Entity, &Movement)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: Res<ActiveUnit>,
+    mut selected_tile: ResMut<SelectedTile>,
+    mut phase: ResMut<State<TurnPhase>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
-        let mouse_pos = get_mouse_position(mouse_input, windows, q_camera);
+        let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        let selection = tiles
-            .into_iter()
-            .find(|(_grid, world)| mouse_pos.distance(Vec2::new(world.x, world.y)) <= min_dist);
-        if let Some((grid, _world)) = selection {
+        let selection = tiles.into_iter().find(|(_grid, transform)| {
+            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                <= min_dist
+        });
+        if let Some((grid, _transform)) = selection {
             let active = active.as_ref();
             if let Some((_e, active_grid)) = unit_grids
-                .into_iter()
-                .find(|(e, _g)| e.id() == active.value)
+            .into_iter()
+            .find(|(e, _g)| e.id() == active.value)
             {
                 if let Some((_e, active_movement)) =
                     movements.into_iter().find(|(e, _m)| e.id() == active.value)
                 {
                     let dist = calculate_manhattan_distance(&active_grid, grid);
                     if dist >= 1 && dist <= active_movement.distance {
-                        println!("Valid");
+                        selected_tile.x = grid.x;
+                        selected_tile.y = grid.y;
+                        phase.set(TurnPhase::DoMove).unwrap();
                     }
                 }
             }
@@ -129,22 +131,23 @@ fn select_move(
 fn click_unit(
     mouse_input: Res<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &WorldPosition), With<Movement>>,
+    entities: Query<(Entity, &mut Transform), With<Movement>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
-        let mouse_pos = get_mouse_position(mouse_input, windows, q_camera);
+        let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        let selection = entities
-            .into_iter()
-            .find(|(_e, world)| mouse_pos.distance(Vec2::new(world.x, world.y)) <= min_dist);
-        if let Some((e, _world)) = selection {
+        let selection = entities.into_iter().find(|(_e, transform)| {
+            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                <= min_dist
+        });
+        if let Some((e, _transform)) = selection {
             active.value = e.id();
-            phase.set(TurnPhase::Move).unwrap();
+            phase.set(TurnPhase::SelectMove).unwrap();
         }
     }
 }
@@ -188,11 +191,11 @@ impl Plugin for UnitsPlugin {
         app.add_startup_system(make_units);
         app.add_startup_system(setup_active);
         app.add_system_set(
-            SystemSet::on_enter(TurnPhase::Move)
+            SystemSet::on_enter(TurnPhase::SelectMove)
                 .with_system(clear_highlighted_tiles)
                 .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
         );
-        app.add_system_set(SystemSet::on_update(TurnPhase::Move).with_system(select_move));
-        app.add_system_set(SystemSet::on_update(TurnPhase::Select).with_system(click_unit));
+        app.add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move));
+        app.add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(click_unit));
     }
 }

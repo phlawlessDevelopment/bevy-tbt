@@ -1,16 +1,30 @@
-use crate::common::{Label, Selectable, WorldPosition};
+use crate::common::{Label, Selectable};
 use bevy::prelude::*;
 
 pub struct GridPlugin;
 
 #[derive(Component, Debug)]
 pub struct GridPosition {
-    pub x:i32,
+    pub x: i32,
     pub y: i32,
 }
 
 #[derive(Component)]
-pub struct Tile;
+pub struct Tile {
+    pub blocked: bool,
+}
+
+
+#[derive(Default)]
+pub struct SelectedPath {
+    pub tiles: Vec<(i32, i32)>,
+}
+
+#[derive(Default)]
+pub struct SelectedTile {
+    pub x: i32,
+    pub y: i32,
+}
 
 fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
     for i in 0..16 {
@@ -26,14 +40,17 @@ fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
             .insert(Label {
                 text: String::from(format!("tile {:?}", [i / 4, i % 4])),
             })
-            .insert(Tile)
-            .insert(GridPosition { x: i / 4, y: i % 4 })
-            .insert(WorldPosition { x, y });
+            .insert(Tile { blocked: false })
+            .insert(GridPosition { x: i / 4, y: i % 4 });
     }
 }
 
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(make_tiles);
+        app
+        .init_resource::<SelectedPath>()
+        .init_resource::<SelectedTile>()
+        .add_startup_system(make_tiles);
+
     }
 }
