@@ -30,22 +30,25 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut unit_transforms: Query<(Entity, &mut Transform), With<Unit>>,
+    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<Unit>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
-    if let Some((_e, mut transform)) = unit_transforms
+    if let Some((_e, mut transform,mut grid)) = units
         .iter_mut()
-        .find(|(e, _t)| e.id() == active.value)
+        .find(|(e, _t,_g)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
             let direction = Vec3::new(next_tile.0 as f32 * 64.0, next_tile.1 as f32 * 64.0, 0.0)
                 - transform.translation;
 
-            if direction.length() > 0.05 {
-                transform.translation += direction.normalize() * time.delta_seconds() * 100.0;
+            if direction.length() > 1.0 {
+                transform.translation += direction.normalize() * time.delta_seconds() * 64.0;
             } else {
+                transform.translation = Vec3::new(next_tile.0 as f32 * 64.0, next_tile.1 as f32 * 64.0, 0.0);
+                grid.x = next_tile.0;
+                grid.y = next_tile.1;
                 should_pop = true;
             }
         } else {
@@ -130,7 +133,7 @@ fn select_move(
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
-    if mouse_input.just_released(MouseButton::Left) {
+    if mouse_input.just_pressed(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
@@ -152,6 +155,7 @@ fn select_move(
                     if dist >= 1 && dist <= active_movement.distance {
                         selected_tile.x = grid.x;
                         selected_tile.y = grid.y;
+                        println!("{:?}", selected_tile);
                         phase.set(TurnPhase::DoMove).unwrap();
                         mouse_input.reset(MouseButton::Left);
                     }
@@ -169,7 +173,7 @@ fn click_unit(
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
-    if mouse_input.just_released(MouseButton::Left) {
+    if mouse_input.just_pressed(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;

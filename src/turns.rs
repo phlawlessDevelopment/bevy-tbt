@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 
-#[derive(Default)]
+#[derive(Default,Debug)]
 pub struct ActiveUnit {
     pub value:u32
 }

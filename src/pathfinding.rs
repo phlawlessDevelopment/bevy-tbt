@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use priority_queue::PriorityQueue;
 
-use crate::grid::{SelectedPath, SelectedTile};
+use crate::grid::{SelectedPath, SelectedTile, GridPosition};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 use crate::units::Unit;
@@ -19,7 +19,6 @@ impl Plugin for PathfindingPlugin {
             .init_resource::<CameFrom>()
             .init_resource::<CurrentCosts>()
             .add_system_set(SystemSet::on_enter(TurnPhase::DoMove).with_system(a_star_setup))
-            .add_system_set(SystemSet::on_exit(TurnPhase::DoMove).with_system(a_star_reset))
             .add_system_set(SystemSet::on_enter(TurnPhase::DoMove).with_system(a_star_initializer.after(a_star_setup)));
     }
 }
@@ -34,7 +33,7 @@ struct CameFrom(HashMap<(i32, i32), Option<(i32, i32)>>);
 struct CurrentCosts(HashMap<(i32, i32), i32>);
 
 fn a_star_initializer(
-    unit_transforms: Query<(Entity, &mut Transform), With<Unit>>,
+    units: Query<(Entity, &mut Transform,&GridPosition), With<Unit>>,
     mut frontier: ResMut<Frontier>,
     mut came_from: ResMut<CameFrom>,
     mut current_costs: ResMut<CurrentCosts>,
@@ -43,16 +42,17 @@ fn a_star_initializer(
     active: ResMut<ActiveUnit>,
 ) {
     let active = active.as_ref();
-    if let Some((_e, transform)) = unit_transforms
+    println!("{:?}",active);
+    if let Some((_e, transform,grid)) = units
     .into_iter()
-    .find(|(e, _t)| e.id() == active.value)
+    .find(|(e, _t,_g)| e.id() == active.value)
     {
         frontier.0.clear();
         came_from.0.clear();
         current_costs.0.clear();
         let unit_position = (
-            transform.translation.x.round() as i32,
-            transform.translation.z.round() as i32,
+            grid.x,
+            grid.y,
         );
         frontier.0.push(unit_position, Reverse(0));
         came_from.0.insert(unit_position, None);
@@ -146,12 +146,4 @@ fn a_star_setup(
     current_costs.0.insert((0, 0), 0);
 }
 
-fn a_star_reset(
-    mut frontier: ResMut<Frontier>,
-    mut came_from: ResMut<CameFrom>,
-    mut current_costs: ResMut<CurrentCosts>,
-) {
-    frontier.0 = PriorityQueue::new();
-    came_from.0 = HashMap::new();
-    current_costs.0 = HashMap::new();
-}
+

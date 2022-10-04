@@ -20,7 +20,7 @@ pub struct SelectedPath {
     pub tiles: Vec<(i32, i32)>,
 }
 
-#[derive(Default)]
+#[derive(Default,Debug)]
 pub struct SelectedTile {
     pub x: i32,
     pub y: i32,
