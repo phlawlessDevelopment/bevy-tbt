@@ -19,6 +19,7 @@ impl Plugin for PathfindingPlugin {
             .init_resource::<CameFrom>()
             .init_resource::<CurrentCosts>()
             .add_system_set(SystemSet::on_enter(TurnPhase::DoMove).with_system(a_star_setup))
+            .add_system_set(SystemSet::on_exit(TurnPhase::DoMove).with_system(a_star_reset))
             .add_system_set(SystemSet::on_enter(TurnPhase::DoMove).with_system(a_star_initializer.after(a_star_setup)));
     }
 }
@@ -31,10 +32,6 @@ struct CameFrom(HashMap<(i32, i32), Option<(i32, i32)>>);
 
 #[derive(Default)]
 struct CurrentCosts(HashMap<(i32, i32), i32>);
-
-fn follow_path(){
-    //todo:
-}
 
 fn a_star_initializer(
     unit_transforms: Query<(Entity, &mut Transform), With<Unit>>,
@@ -116,7 +113,7 @@ fn select_path(
         selected_path.tiles.push(current_tile);
 
         if came_from.0[&current_tile] == None {
-            println!("Did not found path");
+            println!("Did not find path");
             break;
         }
 
@@ -147,4 +144,14 @@ fn a_star_setup(
     frontier.0.push((0, 0), Reverse(0));
     came_from.0.insert((0, 0), None);
     current_costs.0.insert((0, 0), 0);
+}
+
+fn a_star_reset(
+    mut frontier: ResMut<Frontier>,
+    mut came_from: ResMut<CameFrom>,
+    mut current_costs: ResMut<CurrentCosts>,
+) {
+    frontier.0 = PriorityQueue::new();
+    came_from.0 = HashMap::new();
+    current_costs.0 = HashMap::new();
 }

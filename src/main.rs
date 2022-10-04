@@ -1,18 +1,24 @@
-use bevy::{prelude::*};
+use bevy::prelude::*;
 
 mod camera;
 mod common;
 mod grid;
-mod units;
+mod pathfinding;
 mod states;
 mod turns;
-mod pathfinding;
+mod units;
 
-use camera::{CameraPlugin};
-use pathfinding::{PathfindingPlugin};
-use grid::{GridPlugin};
-use units::UnitsPlugin;
-use states::{GameState,Turn,TurnPhase};
+use crate::{
+    camera::CameraPlugin,
+    grid::GridPlugin,
+    pathfinding::PathfindingPlugin,
+    states::{GameState, Turn, TurnPhase},
+    units::UnitsPlugin,
+};
+
+// fn print_state(phase: Res<State<TurnPhase>>,){
+//     println!("{:?}",phase.into_inner())
+// }
 
 fn main() {
     App::new()
@@ -24,5 +30,6 @@ fn main() {
         .add_state(GameState::Game)
         .add_state(Turn::Player)
         .add_state(TurnPhase::SelectUnit)
+        // .add_system(print_state)
         .run();
 }

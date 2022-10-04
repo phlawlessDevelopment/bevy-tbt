@@ -3,7 +3,7 @@ use bevy::render::camera::RenderTarget;
 
 use crate::camera::MainCamera;
 use crate::common::{Label, Selectable};
-use crate::grid::{GridPosition, SelectedTile, Tile};
+use crate::grid::{GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 
@@ -24,6 +24,38 @@ struct Health {
 
 fn setup_active(mut commands: Commands) {
     commands.insert_resource(ActiveUnit { ..default() });
+}
+
+fn move_active_unit(
+    time: Res<Time>,
+    mut selected_path: ResMut<SelectedPath>,
+    active: ResMut<ActiveUnit>,
+    mut unit_transforms: Query<(Entity, &mut Transform), With<Unit>>,
+    mut phase: ResMut<State<TurnPhase>>,
+) {
+    let active = active.as_ref();
+    if let Some((_e, mut transform)) = unit_transforms
+        .iter_mut()
+        .find(|(e, _t)| e.id() == active.value)
+    {
+        let mut should_pop = false;
+        if let Some(next_tile) = selected_path.tiles.last() {
+            let direction = Vec3::new(next_tile.0 as f32 * 64.0, next_tile.1 as f32 * 64.0, 0.0)
+                - transform.translation;
+
+            if direction.length() > 0.05 {
+                transform.translation += direction.normalize() * time.delta_seconds() * 100.0;
+            } else {
+                should_pop = true;
+            }
+        } else {
+            phase.set(TurnPhase::SelectUnit).unwrap();
+        }
+
+        if should_pop {
+            selected_path.tiles.pop();
+        }
+    }
 }
 
 fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -88,7 +120,7 @@ fn get_mouse_position(
 }
 
 fn select_move(
-    mouse_input: Res<Input<MouseButton>>,
+    mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     tiles: Query<(&GridPosition, &mut Transform), With<Tile>>,
     unit_grids: Query<(Entity, &GridPosition), With<Unit>>,
@@ -98,7 +130,7 @@ fn select_move(
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
-    if mouse_input.just_pressed(MouseButton::Left) {
+    if mouse_input.just_released(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
@@ -110,8 +142,8 @@ fn select_move(
         if let Some((grid, _transform)) = selection {
             let active = active.as_ref();
             if let Some((_e, active_grid)) = unit_grids
-            .into_iter()
-            .find(|(e, _g)| e.id() == active.value)
+                .into_iter()
+                .find(|(e, _g)| e.id() == active.value)
             {
                 if let Some((_e, active_movement)) =
                     movements.into_iter().find(|(e, _m)| e.id() == active.value)
@@ -121,6 +153,7 @@ fn select_move(
                         selected_tile.x = grid.x;
                         selected_tile.y = grid.y;
                         phase.set(TurnPhase::DoMove).unwrap();
+                        mouse_input.reset(MouseButton::Left);
                     }
                 }
             }
@@ -129,14 +162,14 @@ fn select_move(
 }
 
 fn click_unit(
-    mouse_input: Res<Input<MouseButton>>,
+    mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     entities: Query<(Entity, &mut Transform), With<Movement>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
-    if mouse_input.just_pressed(MouseButton::Left) {
+    if mouse_input.just_released(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
@@ -148,6 +181,7 @@ fn click_unit(
         if let Some((e, _transform)) = selection {
             active.value = e.id();
             phase.set(TurnPhase::SelectMove).unwrap();
+            mouse_input.reset(MouseButton::Left);
         }
     }
 }
@@ -183,19 +217,28 @@ fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
         sprite.color.set_a(1.0);
     }
 }
+fn clear_active_unit(mut active: ResMut<ActiveUnit>,) {
+   active.value = 0;
+}
 fn calculate_manhattan_distance(a: &GridPosition, b: &GridPosition) -> i32 {
     i32::abs(b.x - a.x) + i32::abs(b.y - a.y)
 }
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(make_units);
-        app.add_startup_system(setup_active);
-        app.add_system_set(
-            SystemSet::on_enter(TurnPhase::SelectMove)
-                .with_system(clear_highlighted_tiles)
-                .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
-        );
-        app.add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move));
-        app.add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(click_unit));
+        app.add_startup_system(make_units)
+            .add_startup_system(setup_active)
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::SelectMove)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
+            )
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::SelectUnit)
+                    .with_system(clear_active_unit)
+                    .with_system(clear_highlighted_tiles)
+            )
+            .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
+            .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
+            .add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(click_unit));
     }
 }
