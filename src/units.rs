@@ -54,14 +54,17 @@ fn move_active_unit(
         } else {
             phase.set(TurnPhase::SelectUnit).unwrap();
         }
-
         if should_pop {
             selected_path.tiles.pop();
         }
     }
 }
 
-fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn make_units(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+
+) {
     // for i in 0..16 {
     commands
         .spawn_bundle(SpriteBundle {
@@ -90,6 +93,34 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
         .insert(GridPosition { x: 0, y: 0 });
+   
+        commands
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("sprites/chess_pawn.png"),
+            transform: Transform::from_translation(Vec3::new(
+                1 as f32 * 64.0 - (4.5 * 64.0),
+                2 as f32 * 64.0 - (4.5 * 64.0),
+                0.0,
+            )),
+            sprite: Sprite {
+                color: Color::Rgba {
+                    red: 0.0,
+                    green: 1.0,
+                    blue: 0.0,
+                    alpha: 1.0,
+                },
+                ..default()
+            },
+            ..default()
+        })
+        .insert(Unit)
+        .insert(Selectable)
+        .insert(Label {
+            text: String::from("unit"),
+        })
+        .insert(Movement { distance: 4 })
+        .insert(Health { max: 5, value: 5 })
+        .insert(GridPosition { x: 1, y: 2 });
     // }
 }
 fn get_mouse_position(
@@ -191,7 +222,7 @@ fn click_unit(
 }
 
 fn highlight_reachable_tiles(
-    mut tiles: Query<(&GridPosition, &mut Sprite), With<Tile>>,
+    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
     movements: Query<(Entity, &Movement)>,
     active: Res<ActiveUnit>,
@@ -204,8 +235,8 @@ fn highlight_reachable_tiles(
         if let Some((_e, active_movement)) =
             movements.into_iter().find(|(e, _m)| e.id() == active.value)
         {
-            for (_grid, mut sprite) in tiles.iter_mut().filter(|(grid, _s)| {
-                calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance
+            for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile,grid, _s)| {
+                calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance && !tile.blocked
             }) {
                 sprite.color.set_r(1.0);
                 sprite.color.set_a(0.3);
