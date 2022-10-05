@@ -31,7 +31,7 @@ pub struct GridConfig {
 }
 
 impl GridConfig {
-    fn offset(&self) -> f32 {
+    pub fn offset(&self) -> f32 {
         self.tile_size * (self.rows_cols as f32 * 0.5)
     }
 }

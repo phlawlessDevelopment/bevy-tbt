@@ -3,13 +3,14 @@ use bevy::render::camera::RenderTarget;
 
 use crate::camera::MainCamera;
 use crate::common::{Label, Selectable};
-use crate::grid::{calculate_manhattan_distance, GridPosition, SelectedPath, SelectedTile, Tile};
+use crate::grid::{
+    calculate_manhattan_distance, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile,
+};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
-use crate::units::{Unit, Movement,Health};
+use crate::units::{Health, Movement, Unit};
 
 pub struct PlayerUnitsPlugin;
-
 
 #[derive(Component, Debug)]
 pub struct Player {
@@ -26,25 +27,28 @@ fn move_active_unit(
     active: ResMut<ActiveUnit>,
     mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Player)>,
     mut phase: ResMut<State<TurnPhase>>,
+    grid_config: Res<GridConfig>,
 ) {
     let active = active.as_ref();
-    if let Some((_e, mut transform, mut grid,mut player)) =
-        player_units.iter_mut().find(|(e, _t, _g,p)| e.id() == active.value)
+    if let Some((_e, mut transform, mut grid, mut player)) = player_units
+        .iter_mut()
+        .find(|(e, _t, _g, p)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
             let direction = Vec3::new(
-                next_tile.0 as f32 * 64.0 - (4.5 * 64.0),
-                next_tile.1 as f32 * 64.0 - (4.5 * 64.0),
+                next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
+                next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
                 0.0,
             ) - transform.translation;
 
             if direction.length() > 1.0 {
-                transform.translation += direction.normalize() * time.delta_seconds() * 64.0;
+                transform.translation +=
+                    direction.normalize() * time.delta_seconds() * grid_config.tile_size;
             } else {
                 transform.translation = Vec3::new(
-                    next_tile.0 as f32 * 64.0 - (4.5 * 64.0),
-                    next_tile.1 as f32 * 64.0 - (4.5 * 64.0),
+                    next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
+                    next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
                     0.0,
                 );
                 grid.x = next_tile.0;
@@ -53,6 +57,7 @@ fn move_active_unit(
             }
         } else {
             player.has_acted = true;
+            player.set_changed();
             phase.set(TurnPhase::SelectUnit).unwrap();
         }
         if should_pop {
@@ -61,14 +66,18 @@ fn move_active_unit(
     }
 }
 
-fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn make_units(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    grid_config: Res<GridConfig>,
+) {
     // for i in 0..16 {
     commands
         .spawn_bundle(SpriteBundle {
             texture: asset_server.load("sprites/chess_pawn.png"),
             transform: Transform::from_translation(Vec3::new(
-                0 as f32 * 64.0 - (4.5 * 64.0),
-                0 as f32 * 64.0 - (4.5 * 64.0),
+                0 as f32 * grid_config.tile_size - grid_config.offset(),
+                0 as f32 * grid_config.tile_size - grid_config.offset(),
                 0.0,
             )),
             sprite: Sprite {
@@ -199,7 +208,7 @@ fn check_player_has_acted(
 ) {
     let mut still_to_act = false;
     for unit in player_units.iter() {
-        if !unit.has_acted {
+        if unit.has_acted == false {
             still_to_act = true;
         }
     }
@@ -220,12 +229,12 @@ impl Plugin for PlayerUnitsPlugin {
         app.add_startup_system(make_units)
             .add_startup_system(setup_active)
             .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
+            .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
             .add_system_set(
-                SystemSet::on_update(TurnPhase::SelectMove)
-                    .with_system(select_move)
+                SystemSet::on_update(TurnPhase::SelectUnit)
+                    .with_system(select_unit)
                     .with_system(check_player_has_acted),
             )
-            .add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(select_unit))
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
             );
