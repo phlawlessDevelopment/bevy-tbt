@@ -1,10 +1,10 @@
-use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
+use bevy::{prelude::*, sprite};
 
 use crate::camera::MainCamera;
 use crate::common::{Label, Selectable};
 use crate::grid::{
-    self, calculate_manhattan_distance, GridPosition, SelectedPath, SelectedTile, Tile,
+    calculate_manhattan_distance, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile,
 };
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
@@ -23,29 +23,32 @@ fn setup_active(mut commands: Commands) {
 
 fn move_active_unit(
     time: Res<Time>,
-    mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut ai_units: Query<(Entity, &mut Transform, &mut GridPosition), With<Ai>>,
+    grid_config: Res<GridConfig>,
+    mut selected_path: ResMut<SelectedPath>,
+    mut ai_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Ai)>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
-    if let Some((_e, mut transform, mut grid)) =
-        ai_units.iter_mut().find(|(e, _t, _g)| e.id() == active.value)
+    if let Some((_e, mut transform, mut grid, mut ai)) = ai_units
+        .iter_mut()
+        .find(|(e, _t, _g, _ai)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
             let direction = Vec3::new(
-                next_tile.0 as f32 * 64.0 - (4.5 * 64.0),
-                next_tile.1 as f32 * 64.0 - (4.5 * 64.0),
+                next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
+                next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
                 0.0,
             ) - transform.translation;
 
             if direction.length() > 1.0 {
-                transform.translation += direction.normalize() * time.delta_seconds() * 64.0;
+                transform.translation +=
+                    direction.normalize() * time.delta_seconds() * grid_config.tile_size;
             } else {
                 transform.translation = Vec3::new(
-                    next_tile.0 as f32 * 64.0 - (4.5 * 64.0),
-                    next_tile.1 as f32 * 64.0 - (4.5 * 64.0),
+                    next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
+                    next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
                     0.0,
                 );
                 grid.x = next_tile.0;
@@ -53,7 +56,9 @@ fn move_active_unit(
                 should_pop = true;
             }
         } else {
-            phase.set(TurnPhase::SelectUnit).unwrap();
+            ai.has_acted = true;
+            ai.set_changed();
+            phase.set(TurnPhase::AISelectUnit).unwrap();
         }
         if should_pop {
             selected_path.tiles.pop();
@@ -61,14 +66,18 @@ fn move_active_unit(
     }
 }
 
-fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn make_units(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    grid_config: Res<GridConfig>,
+) {
     // for i in 0..16 {
     commands
         .spawn_bundle(SpriteBundle {
             texture: asset_server.load("sprites/chess_pawn.png"),
             transform: Transform::from_translation(Vec3::new(
-                1 as f32 * 64.0 - (4.5 * 64.0),
-                2 as f32 * 64.0 - (4.5 * 64.0),
+                1 as f32 * grid_config.tile_size - grid_config.offset(),
+                2 as f32 * grid_config.tile_size - grid_config.offset(),
                 0.0,
             )),
             sprite: Sprite {
@@ -95,9 +104,38 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn select_move(
-    
+    active: Res<ActiveUnit>,
+    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
+    movements: Query<(Entity, &Movement), With<Ai>>,
+    mut selected_tile: ResMut<SelectedTile>,
+    mut phase: ResMut<State<TurnPhase>>,
+    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
 ) {
-    //todo : make path to player, trimmed to move number of tiles allowed by Movement component, set state to AiDoMove
+    let active = active.as_ref();
+    if let Some((_e, active_grid)) = unit_grids
+        .into_iter()
+        .find(|(e, _g)| e.id() == active.value)
+    {
+        if let Some((_e, active_movement)) =
+            movements.into_iter().find(|(e, _m)| e.id() == active.value)
+        {
+            let mut reachable: Vec<(&Tile, &GridPosition, &Sprite)> = tiles
+                .iter()
+                .filter(|(tile, grid, _s)| {
+                    calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance
+                        && !tile.blocked
+                })
+                .collect();
+            reachable.sort_by(|a, b| {
+                calculate_manhattan_distance(a.1, active_grid)
+                    .cmp(&calculate_manhattan_distance(b.1, active_grid))
+            });
+            selected_tile.x = reachable[0].1.x;
+            selected_tile.y = reachable[0].1.y;
+            selected_tile.set_changed();
+            phase.set(TurnPhase::AIDoMove).unwrap();
+        }
+    }
 }
 
 fn select_unit(
@@ -137,14 +175,14 @@ impl Plugin for AiUnitsPlugin {
         app.add_startup_system(make_units)
             .add_startup_system(setup_active)
             .add_system_set(SystemSet::on_update(TurnPhase::AIDoMove).with_system(move_active_unit))
+            .add_system_set(SystemSet::on_update(TurnPhase::AISelectMove).with_system(select_move))
             .add_system_set(
-                SystemSet::on_update(TurnPhase::AISelectMove)
-                    .with_system(select_move)
+                SystemSet::on_update(TurnPhase::AISelectUnit)
+                    .with_system(select_unit)
                     .with_system(check_enemy_has_acted),
             )
-            .add_system_set(SystemSet::on_update(TurnPhase::AISelectUnit).with_system(select_unit))
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
+                SystemSet::on_enter(TurnPhase::AISelectUnit).with_system(clear_active_unit),
             );
     }
 }
