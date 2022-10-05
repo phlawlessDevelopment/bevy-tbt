@@ -10,9 +10,11 @@ use crate::turns::ActiveUnit;
 pub struct UnitsPlugin;
 
 #[derive(Component, Debug)]
-pub struct PlayerUnit;
+pub struct Unit;
 #[derive(Component, Debug)]
-pub struct AiUnit;
+pub struct Player;
+#[derive(Component, Debug)]
+pub struct Ai;
 
 #[derive(Component, Debug)]
 pub struct Movement {
@@ -32,7 +34,7 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<PlayerUnit>>,
+    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<Unit>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
@@ -87,7 +89,8 @@ fn make_units(
             },
             ..default()
         })
-        .insert(PlayerUnit)
+        .insert(Unit)
+        .insert(Player)
         .insert(Selectable)
         .insert(Label {
             text: String::from("unit"),
@@ -115,7 +118,8 @@ fn make_units(
             },
             ..default()
         })
-        .insert(AiUnit)
+        .insert(Unit)
+        .insert(Ai)
         .insert(Selectable)
         .insert(Label {
             text: String::from("unit"),
@@ -160,7 +164,7 @@ fn select_move(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     tiles: Query<(&GridPosition, &mut Transform), With<Tile>>,
-    unit_grids: Query<(Entity, &GridPosition), With<PlayerUnit>>,
+    unit_grids: Query<(Entity, &GridPosition), With<Unit>>,
     movements: Query<(Entity, &Movement)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: Res<ActiveUnit>,
@@ -189,20 +193,30 @@ fn select_move(
                     if dist >= 1 && dist <= active_movement.distance {
                         selected_tile.x = grid.x;
                         selected_tile.y = grid.y;
-                        println!("{:?}", selected_tile);
                         phase.set(TurnPhase::DoMove).unwrap();
                         mouse_input.reset(MouseButton::Left);
                     }
                 }
+                else{
+
+                    println!("no active 2");
+                }
             }
+            else{
+
+                println!("no active");
+            }
+        }
+        else{
+            println!("no selection");
         }
     }
 }
 
-fn click_unit(
+fn select_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform), With<Movement>>,
+    entities: Query<(Entity, &mut Transform), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -235,7 +249,7 @@ impl Plugin for UnitsPlugin {
             .add_startup_system(setup_active)
             .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
             .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
-            .add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(click_unit))
+            .add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(select_unit))
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit)
                     .with_system(clear_active_unit)

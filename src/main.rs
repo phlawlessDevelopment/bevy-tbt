@@ -12,7 +12,7 @@ use crate::{
     camera::CameraPlugin,
     grid::GridPlugin,
     pathfinding::PathfindingPlugin,
-    states::{GameState, Turn, TurnPhase},
+    states::{GameState, TurnPhase},
     units::UnitsPlugin,
 };
 
@@ -28,7 +28,6 @@ fn main() {
         .add_plugin(UnitsPlugin)
         .add_plugin(PathfindingPlugin)
         .add_state(GameState::Game)
-        .add_state(Turn::Player)
         .add_state(TurnPhase::SelectUnit)
         // .add_system(print_state)
         .run();

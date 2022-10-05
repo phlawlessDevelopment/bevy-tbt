@@ -2,7 +2,7 @@ use crate::{
     common::{Label, Selectable},
     states::TurnPhase,
     turns::ActiveUnit,
-    units::{Movement, PlayerUnit},
+    units::{Movement, Unit},
 };
 use bevy::prelude::*;
 
@@ -85,7 +85,7 @@ fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn set_blocked_tiles(
-    units: Query<&GridPosition, With<PlayerUnit>>,
+    units: Query<&GridPosition, With<Unit>>,
     mut tiles: Query<(&GridPosition, &mut Tile)>,
 ) {
     for (tile_pos, mut tile) in tiles.iter_mut() {

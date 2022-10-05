@@ -7,11 +7,7 @@ pub enum GameState {
     Pause,
     GameOver,
 }
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub enum Turn {
-    Player,
-    Ai,
-}
+
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub enum TurnPhase {
     None,
@@ -19,4 +15,7 @@ pub enum TurnPhase {
     SelectMove,
     DoMove,
     Attack,
+    
+    EnemyMove,
+    EnemyAttack,
 }
