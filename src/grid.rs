@@ -1,7 +1,8 @@
 use crate::{
     common::{Label, Selectable},
     states::TurnPhase,
-    units::Unit,
+    turns::ActiveUnit,
+    units::{Movement, Unit},
 };
 use bevy::prelude::*;
 
@@ -27,6 +28,41 @@ pub struct SelectedPath {
 pub struct SelectedTile {
     pub x: i32,
     pub y: i32,
+}
+pub fn calculate_manhattan_distance(a: &GridPosition, b: &GridPosition) -> i32 {
+    i32::abs(b.x - a.x) + i32::abs(b.y - a.y)
+}
+fn highlight_reachable_tiles(
+    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
+    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
+    movements: Query<(Entity, &Movement)>,
+    active: Res<ActiveUnit>,
+) {
+    let active = active.as_ref();
+    if let Some((_e, active_grid)) = unit_grids
+        .into_iter()
+        .find(|(e, _g)| e.id() == active.value)
+    {
+        if let Some((_e, active_movement)) =
+            movements.into_iter().find(|(e, _m)| e.id() == active.value)
+        {
+            for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile, grid, _s)| {
+                calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance
+                    && !tile.blocked
+            }) {
+                sprite.color.set_r(1.0);
+                sprite.color.set_a(0.3);
+            }
+        }
+    }
+}
+fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
+    for mut sprite in tiles.iter_mut() {
+        sprite.color.set_r(1.0);
+        sprite.color.set_g(1.0);
+        sprite.color.set_b(1.0);
+        sprite.color.set_a(1.0);
+    }
 }
 
 fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -70,8 +106,19 @@ impl Plugin for GridPlugin {
             .init_resource::<SelectedTile>()
             .add_startup_system(make_tiles)
             .add_system_set(
+                SystemSet::on_enter(TurnPhase::SelectMove).with_system(set_blocked_tiles),
+            )
+            .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove)
-                    .with_system(set_blocked_tiles),
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
+            )
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::DoMove).with_system(clear_highlighted_tiles),
+            )
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::SelectUnit)
+                    .with_system(clear_highlighted_tiles),
             );
     }
 }

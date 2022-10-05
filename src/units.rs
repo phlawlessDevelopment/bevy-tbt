@@ -3,7 +3,7 @@ use bevy::render::camera::RenderTarget;
 
 use crate::camera::MainCamera;
 use crate::common::{Label, Selectable};
-use crate::grid::{GridPosition, SelectedPath, SelectedTile, Tile};
+use crate::grid::{GridPosition, SelectedPath, SelectedTile, Tile , calculate_manhattan_distance};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 
@@ -123,6 +123,7 @@ fn make_units(
         .insert(GridPosition { x: 1, y: 2 });
     // }
 }
+
 fn get_mouse_position(
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
@@ -221,59 +222,21 @@ fn click_unit(
     }
 }
 
-fn highlight_reachable_tiles(
-    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
-    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
-    movements: Query<(Entity, &Movement)>,
-    active: Res<ActiveUnit>,
-) {
-    let active = active.as_ref();
-    if let Some((_e, active_grid)) = unit_grids
-        .into_iter()
-        .find(|(e, _g)| e.id() == active.value)
-    {
-        if let Some((_e, active_movement)) =
-            movements.into_iter().find(|(e, _m)| e.id() == active.value)
-        {
-            for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile,grid, _s)| {
-                calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance && !tile.blocked
-            }) {
-                sprite.color.set_r(1.0);
-                sprite.color.set_a(0.3);
-            }
-        }
-    }
-}
-fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
-    for mut sprite in tiles.iter_mut() {
-        sprite.color.set_r(1.0);
-        sprite.color.set_g(1.0);
-        sprite.color.set_b(1.0);
-        sprite.color.set_a(1.0);
-    }
-}
+
 fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
     active.value = 0;
 }
-fn calculate_manhattan_distance(a: &GridPosition, b: &GridPosition) -> i32 {
-    i32::abs(b.x - a.x) + i32::abs(b.y - a.y)
-}
+
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(make_units)
             .add_startup_system(setup_active)
-            .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectMove)
-                    .with_system(clear_highlighted_tiles)
-                    .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
-            )
+            .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
+            .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
+            .add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(click_unit))
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit)
                     .with_system(clear_active_unit)
-                    .with_system(clear_highlighted_tiles),
-            )
-            .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
-            .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
-            .add_system_set(SystemSet::on_update(TurnPhase::SelectUnit).with_system(click_unit));
+            );
     }
 }
