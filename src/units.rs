@@ -10,7 +10,9 @@ use crate::turns::ActiveUnit;
 pub struct UnitsPlugin;
 
 #[derive(Component, Debug)]
-pub struct Unit;
+pub struct PlayerUnit;
+#[derive(Component, Debug)]
+pub struct AiUnit;
 
 #[derive(Component, Debug)]
 pub struct Movement {
@@ -30,7 +32,7 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<Unit>>,
+    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<PlayerUnit>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
@@ -85,7 +87,7 @@ fn make_units(
             },
             ..default()
         })
-        .insert(Unit)
+        .insert(PlayerUnit)
         .insert(Selectable)
         .insert(Label {
             text: String::from("unit"),
@@ -104,8 +106,8 @@ fn make_units(
             )),
             sprite: Sprite {
                 color: Color::Rgba {
-                    red: 0.0,
-                    green: 1.0,
+                    red: 1.0,
+                    green: 0.0,
                     blue: 0.0,
                     alpha: 1.0,
                 },
@@ -113,7 +115,7 @@ fn make_units(
             },
             ..default()
         })
-        .insert(Unit)
+        .insert(AiUnit)
         .insert(Selectable)
         .insert(Label {
             text: String::from("unit"),
@@ -158,7 +160,7 @@ fn select_move(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     tiles: Query<(&GridPosition, &mut Transform), With<Tile>>,
-    unit_grids: Query<(Entity, &GridPosition), With<Unit>>,
+    unit_grids: Query<(Entity, &GridPosition), With<PlayerUnit>>,
     movements: Query<(Entity, &Movement)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: Res<ActiveUnit>,

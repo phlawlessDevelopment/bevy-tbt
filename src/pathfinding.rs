@@ -4,7 +4,7 @@ use priority_queue::PriorityQueue;
 use crate::grid::{GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
-use crate::units::Unit;
+use crate::units::PlayerUnit;
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
@@ -36,7 +36,7 @@ struct ClosedSet(HashMap<(i32, i32), Option<(i32, i32)>>);
 struct CurrentCosts(HashMap<(i32, i32), i32>);
 
 fn a_star_initializer(
-    units: Query<(Entity, &GridPosition), With<Unit>>,
+    units: Query<(Entity, &GridPosition), With<PlayerUnit>>,
     tiles: Query<(&GridPosition, &Tile)>,
     mut open_set: ResMut<OpenSet>,
     mut closed_set: ResMut<ClosedSet>,
