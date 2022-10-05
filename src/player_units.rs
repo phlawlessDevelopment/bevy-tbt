@@ -24,12 +24,12 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<Unit>>,
+    mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Player)>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
-    if let Some((_e, mut transform, mut grid)) =
-        units.iter_mut().find(|(e, _t, _g)| e.id() == active.value)
+    if let Some((_e, mut transform, mut grid,mut player)) =
+        player_units.iter_mut().find(|(e, _t, _g,p)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
@@ -52,6 +52,7 @@ fn move_active_unit(
                 should_pop = true;
             }
         } else {
+            player.has_acted = true;
             phase.set(TurnPhase::SelectUnit).unwrap();
         }
         if should_pop {
