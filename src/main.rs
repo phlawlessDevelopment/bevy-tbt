@@ -1,3 +1,4 @@
+use ai_units::AiUnitsPlugin;
 use bevy::prelude::*;
 
 mod camera;
@@ -6,6 +7,8 @@ mod grid;
 mod pathfinding;
 mod states;
 mod turns;
+mod player_units;
+mod ai_units;
 mod units;
 
 use crate::{
@@ -13,7 +16,7 @@ use crate::{
     grid::GridPlugin,
     pathfinding::PathfindingPlugin,
     states::{GameState, TurnPhase},
-    units::UnitsPlugin,
+    player_units::PlayerUnitsPlugin,
 };
 
 // fn print_state(phase: Res<State<TurnPhase>>,){
@@ -25,7 +28,8 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(CameraPlugin)
         .add_plugin(GridPlugin)
-        .add_plugin(UnitsPlugin)
+        .add_plugin(PlayerUnitsPlugin)
+        .add_plugin(AiUnitsPlugin)
         .add_plugin(PathfindingPlugin)
         .add_state(GameState::Game)
         .add_state(TurnPhase::SelectUnit)

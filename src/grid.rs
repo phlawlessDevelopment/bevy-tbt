@@ -24,6 +24,18 @@ pub struct SelectedPath {
     pub tiles: Vec<(i32, i32)>,
 }
 
+#[derive(Default)]
+pub struct GridConfig {
+    pub tile_size: f32,
+    pub rows_cols: i32,
+}
+
+impl GridConfig {
+    fn offset(&self) -> f32 {
+        self.tile_size * (self.rows_cols as f32 * 0.5)
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct SelectedTile {
     pub x: i32,
@@ -65,10 +77,13 @@ fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
     }
 }
 
-fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn make_tiles(mut commands: Commands,
+     asset_server: Res<AssetServer>,
+     grid_config: Res<GridConfig>,
+    ) {
     for i in 0..81 {
-        let x = ((i / 9) as f32 * 64.0) - (4.5 * 64.0);
-        let y = (i % 9) as f32 * 64.0 - (4.5 * 64.0);
+        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
+        let y = (i % grid_config.rows_cols) as f32 * grid_config.tile_size - grid_config.offset();
         commands
             .spawn_bundle(SpriteBundle {
                 texture: asset_server.load("sprites/dice_empty.png"),
@@ -77,10 +92,10 @@ fn make_tiles(mut commands: Commands, asset_server: Res<AssetServer>) {
             })
             .insert(Selectable)
             .insert(Label {
-                text: String::from(format!("tile {:?}", [i / 9, i % 9])),
+                text: String::from(format!("tile {:?}", [i / grid_config.rows_cols, i % grid_config.rows_cols])),
             })
             .insert(Tile { blocked: false })
-            .insert(GridPosition { x: i / 9, y: i % 9 });
+            .insert(GridPosition { x: i / grid_config.rows_cols, y: i % grid_config.rows_cols });
     }
 }
 
@@ -104,6 +119,10 @@ impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedPath>()
             .init_resource::<SelectedTile>()
+            .insert_resource(GridConfig {
+                tile_size: 64.0,
+                rows_cols: 9,
+            })
             .add_startup_system(make_tiles)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove).with_system(set_blocked_tiles),
@@ -117,8 +136,7 @@ impl Plugin for GridPlugin {
                 SystemSet::on_enter(TurnPhase::DoMove).with_system(clear_highlighted_tiles),
             )
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectUnit)
-                    .with_system(clear_highlighted_tiles),
+                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_highlighted_tiles),
             );
     }
 }

@@ -15,7 +15,9 @@ pub enum TurnPhase {
     SelectMove,
     DoMove,
     Attack,
-    
-    EnemyMove,
-    EnemyAttack,
+
+    AISelectUnit,
+    AISelectMove,
+    AIDoMove,
+    AIAttack,
 }
