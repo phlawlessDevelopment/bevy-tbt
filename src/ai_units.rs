@@ -25,12 +25,12 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut units: Query<(Entity, &mut Transform, &mut GridPosition), With<Unit>>,
+    mut ai_units: Query<(Entity, &mut Transform, &mut GridPosition), With<Ai>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
     if let Some((_e, mut transform, mut grid)) =
-        units.iter_mut().find(|(e, _t, _g)| e.id() == active.value)
+        ai_units.iter_mut().find(|(e, _t, _g)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
@@ -95,42 +95,9 @@ fn make_units(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn select_move(
-    mut mouse_input: ResMut<Input<MouseButton>>,
-    windows: Res<Windows>,
-    tiles: Query<(&GridPosition, &mut Transform), With<Tile>>,
-    ai_unit_grids: Query<(Entity, &GridPosition), With<Ai>>,
-    ai_units: Query<(Entity, &Ai, &GridPosition)>,
-    movements: Query<(Entity, &Movement)>,
-    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    active: Res<ActiveUnit>,
-    mut selected_tile: ResMut<SelectedTile>,
-    mut phase: ResMut<State<TurnPhase>>,
+    
 ) {
-    for (entity, unit, _grid) in ai_units.into_iter() {
-        if !unit.has_acted {
-            let active = active.as_ref();
-            if let Some((e, ai, grid)) = ai_units
-                .into_iter()
-                .find(|(e, _ai, _g)| e.id() == entity.id())
-            {
-                if let Some((_e, active_grid)) = ai_unit_grids
-                    .into_iter()
-                    .find(|(e, _g)| e.id() == active.value)
-                {
-                    if let Some((_e, active_movement)) =
-                        movements.into_iter().find(|(e, _m)| e.id() == active.value)
-                    {
-                        let dist = calculate_manhattan_distance(&active_grid, grid);
-                        if dist >= 1 && dist <= active_movement.distance {
-                            selected_tile.x = grid.x;
-                            selected_tile.y = grid.y;
-                            phase.set(TurnPhase::AIDoMove).unwrap();
-                        }
-                    }
-                }
-            }
-        }
-    }
+    //todo : make path to player, trimmed to move number of tiles allowed by Movement component, set state to AiDoMove
 }
 
 fn select_unit(
