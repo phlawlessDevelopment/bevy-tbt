@@ -89,7 +89,6 @@ fn spawn_tile(
         .spawn_bundle(SpriteBundle {
             texture: asset_server.load("sprites/dice_empty.png"),
             transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
-            global_transform: GlobalTransform::from_translation(Vec3::new(x, y, 0.0)),
             ..default()
         })
         .insert(Name::new(format!(
@@ -111,20 +110,20 @@ fn make_tiles(
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,
 ) {
-    // let mut tiles = Vec::new();
+    let mut tiles = Vec::new();
     for i in 0..81 {
-        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        // let tile = 
+        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size);
+        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size);
+        let tile = 
         spawn_tile(x, y, i, &mut commands, &asset_server, &grid_config);
-        // tiles.push(tile);
+        tiles.push(tile);
     }
-    // commands
-    //     .spawn()
-    //     .insert(Name::new("MapTiles"))
-    //     .insert(Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)))
-    //     .insert(GlobalTransform::default())
-    //     .push_children(&tiles);
+    commands
+        .spawn()
+        .insert(Name::new("MapTiles"))
+        .insert(Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)))
+        .insert(GlobalTransform::default())
+        .push_children(&tiles);
 }
 
 fn set_blocked_tiles(
