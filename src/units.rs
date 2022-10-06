@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use bevy_inspector_egui::Inspectable;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Inspectable)]
 pub struct Unit;
 
 #[derive(Component, Debug)]

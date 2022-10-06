@@ -10,6 +10,7 @@ mod turns;
 mod player_units;
 mod ai_units;
 mod units;
+mod debug;
 
 use crate::{
     camera::CameraPlugin,
@@ -17,6 +18,7 @@ use crate::{
     pathfinding::PathfindingPlugin,
     states::{GameState, TurnPhase},
     player_units::PlayerUnitsPlugin,
+    debug::DebugPlugin,
 };
 
 // fn print_state(phase: Res<State<TurnPhase>>,){
@@ -26,6 +28,7 @@ use crate::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(DebugPlugin)
         .add_plugin(CameraPlugin)
         .add_plugin(GridPlugin)
         .add_plugin(PlayerUnitsPlugin)

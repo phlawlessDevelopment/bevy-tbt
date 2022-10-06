@@ -77,26 +77,54 @@ fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
     }
 }
 
-fn make_tiles(mut commands: Commands,
-     asset_server: Res<AssetServer>,
-     grid_config: Res<GridConfig>,
-    ) {
+fn spawn_tile(
+    x: f32,
+    y: f32,
+    i: i32,
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    grid_config: &Res<GridConfig>,
+) -> Entity {
+    commands
+        .spawn_bundle(SpriteBundle {
+            texture: asset_server.load("sprites/dice_empty.png"),
+            transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
+            global_transform: GlobalTransform::from_translation(Vec3::new(x, y, 0.0)),
+            ..default()
+        })
+        .insert(Name::new(format!(
+            "Tile ({},{})",
+            i / grid_config.rows_cols,
+            i % grid_config.rows_cols
+        )))
+        .insert(Selectable)
+        .insert(Tile { blocked: false })
+        .insert(GridPosition {
+            x: i / grid_config.rows_cols,
+            y: i % grid_config.rows_cols,
+        })
+        .id()
+}
+
+fn make_tiles(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    grid_config: Res<GridConfig>,
+) {
+    // let mut tiles = Vec::new();
     for i in 0..81 {
         let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let y = (i % grid_config.rows_cols) as f32 * grid_config.tile_size - grid_config.offset();
-        commands
-            .spawn_bundle(SpriteBundle {
-                texture: asset_server.load("sprites/dice_empty.png"),
-                transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
-                ..default()
-            })
-            .insert(Selectable)
-            .insert(Label {
-                text: String::from(format!("tile {:?}", [i / grid_config.rows_cols, i % grid_config.rows_cols])),
-            })
-            .insert(Tile { blocked: false })
-            .insert(GridPosition { x: i / grid_config.rows_cols, y: i % grid_config.rows_cols });
+        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
+        // let tile = 
+        spawn_tile(x, y, i, &mut commands, &asset_server, &grid_config);
+        // tiles.push(tile);
     }
+    // commands
+    //     .spawn()
+    //     .insert(Name::new("MapTiles"))
+    //     .insert(Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)))
+    //     .insert(GlobalTransform::default())
+    //     .push_children(&tiles);
 }
 
 fn set_blocked_tiles(
