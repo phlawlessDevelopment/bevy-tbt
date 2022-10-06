@@ -2,7 +2,6 @@ use ai_units::AiUnitsPlugin;
 use bevy::prelude::*;
 
 mod camera;
-mod common;
 mod grid;
 mod pathfinding;
 mod states;

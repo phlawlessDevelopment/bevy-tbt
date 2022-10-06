@@ -1,5 +1,4 @@
 use crate::{
-    common::{Label, Selectable},
     states::TurnPhase,
     turns::ActiveUnit,
     units::{Movement, Unit},
@@ -14,12 +13,12 @@ pub struct GridPosition {
     pub y: i32,
 }
 
-#[derive(Component)]
+#[derive(Component,Debug)]
 pub struct Tile {
     pub blocked: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SelectedPath {
     pub tiles: Vec<(i32, i32)>,
 }
@@ -96,7 +95,6 @@ fn spawn_tile(
             i / grid_config.rows_cols,
             i % grid_config.rows_cols
         )))
-        .insert(Selectable)
         .insert(Tile { blocked: false })
         .insert(GridPosition {
             x: i / grid_config.rows_cols,
@@ -112,8 +110,8 @@ fn make_tiles(
 ) {
     let mut tiles = Vec::new();
     for i in 0..81 {
-        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size);
-        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size);
+        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
+        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
         let tile = 
         spawn_tile(x, y, i, &mut commands, &asset_server, &grid_config);
         tiles.push(tile);
@@ -121,8 +119,7 @@ fn make_tiles(
     commands
         .spawn()
         .insert(Name::new("MapTiles"))
-        .insert(Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)))
-        .insert(GlobalTransform::default())
+        .insert_bundle(SpatialBundle::default())
         .push_children(&tiles);
 }
 
@@ -153,6 +150,9 @@ impl Plugin for GridPlugin {
             .add_startup_system(make_tiles)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove).with_system(set_blocked_tiles),
+            )
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::AISelectMove).with_system(set_blocked_tiles),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove)

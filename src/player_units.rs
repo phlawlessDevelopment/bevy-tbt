@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
 use crate::camera::MainCamera;
-use crate::common::{Label, Selectable};
 use crate::grid::{
     calculate_manhattan_distance, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile,
 };
@@ -32,7 +31,7 @@ fn move_active_unit(
     let active = active.as_ref();
     if let Some((_e, mut transform, mut grid, mut player)) = player_units
         .iter_mut()
-        .find(|(e, _t, _g, p)| e.id() == active.value)
+        .find(|(e, _t, _g, _p)| e.id() == active.value)
     {
         let mut should_pop = false;
         if let Some(next_tile) = selected_path.tiles.last() {
@@ -66,20 +65,18 @@ fn move_active_unit(
     }
 }
 
-fn make_units(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    grid_config: Res<GridConfig>,
-) {
-    // for i in 0..16 {
+fn spawn_unit(
+    x: f32,
+    y: f32,
+    i: i32,
+    commands: &mut Commands,
+    asset_server: &Res<AssetServer>,
+    grid_config: &Res<GridConfig>,
+) -> Entity {
     commands
         .spawn_bundle(SpriteBundle {
             texture: asset_server.load("sprites/chess_pawn.png"),
-            transform: Transform::from_translation(Vec3::new(
-                0 as f32 * grid_config.tile_size - grid_config.offset(),
-                0 as f32 * grid_config.tile_size - grid_config.offset(),
-                0.0,
-            )),
+            transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
             sprite: Sprite {
                 color: Color::Rgba {
                     red: 0.0,
@@ -93,15 +90,33 @@ fn make_units(
         })
         .insert(Unit)
         .insert(Player { has_acted: false })
-        .insert(Selectable)
-        .insert(Label {
-            text: String::from("unit"),
-        })
+        .insert(Name::new(format!("Player Unit {}", i)))
         .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
-        .insert(GridPosition { x: 0, y: 0 });
+        .insert(GridPosition {
+            x: i / grid_config.rows_cols,
+            y: i % grid_config.rows_cols,
+        })
+        .id()
+}
 
-    // }
+fn make_units(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    grid_config: Res<GridConfig>,
+) {
+    let mut units = Vec::new();
+    for i in 0..1 {
+        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
+        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
+        let unit = spawn_unit(x, y, i, &mut commands, &asset_server, &grid_config);
+        units.push(unit);
+    }
+    commands
+        .spawn()
+        .insert(Name::new("Player Units"))
+        .insert_bundle(SpatialBundle::default())
+        .push_children(&units);
 }
 
 fn get_mouse_position(
@@ -232,8 +247,8 @@ impl Plugin for PlayerUnitsPlugin {
             .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
             .add_system_set(
                 SystemSet::on_update(TurnPhase::SelectUnit)
-                    .with_system(select_unit)
-                    .with_system(check_player_has_acted),
+                    .with_system(check_player_has_acted)
+                    .with_system(select_unit.after(check_player_has_acted)),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),

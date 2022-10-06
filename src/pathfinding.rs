@@ -18,9 +18,15 @@ impl Plugin for PathfindingPlugin {
         app.init_resource::<OpenSet>()
             .init_resource::<ClosedSet>()
             .init_resource::<CurrentCosts>()
+            .init_resource::<AllUnitsActed>()
             .add_system_set(SystemSet::on_enter(TurnPhase::DoMove).with_system(a_star_setup))
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::DoMove)
+                    .with_system(a_star_initializer.after(a_star_setup)),
+            )
+            .add_system_set(SystemSet::on_enter(TurnPhase::AIDoMove).with_system(a_star_setup))
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::AIDoMove)
                     .with_system(a_star_initializer.after(a_star_setup)),
             );
     }
@@ -34,6 +40,11 @@ struct ClosedSet(HashMap<(i32, i32), Option<(i32, i32)>>);
 
 #[derive(Default)]
 struct CurrentCosts(HashMap<(i32, i32), i32>);
+
+#[derive(Default)]
+pub struct AllUnitsActed {
+    pub value: bool,
+}
 
 fn a_star_initializer(
     units: Query<(Entity, &GridPosition), With<Unit>>,
@@ -134,8 +145,6 @@ fn adjacents(tile: (i32, i32)) -> Vec<(i32, i32)> {
 }
 
 fn heuristic(goal: (i32, i32), next_step: (i32, i32)) -> i32 {
-    // (((goal.0 - next_step.0).abs() + (goal.1 - next_step.1).abs()) as f32).sqrt() as i32
-    // Change heurisitc specific for grid
     (goal.0 - next_step.0).abs() + (goal.1 - next_step.1).abs()
 }
 
