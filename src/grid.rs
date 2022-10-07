@@ -6,6 +6,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
+use std::collections::HashMap;
 
 pub struct GridPlugin;
 
@@ -31,6 +32,9 @@ pub struct GridConfig {
     pub rows_cols: i32,
 }
 
+#[derive(Default)]
+pub struct BlockedTiles(pub HashMap<(i32, i32), bool>);
+
 impl GridConfig {
     pub fn offset(&self) -> f32 {
         self.tile_size * (self.rows_cols as f32 * 0.5)
@@ -48,6 +52,7 @@ fn highlight_reachable_tiles(
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
     movements: Query<(Entity, &Movement)>,
     active: Res<ActiveUnit>,
+    blocked: Res<BlockedTiles>,
 ) {
     let active = active.as_ref();
 
@@ -59,8 +64,12 @@ fn highlight_reachable_tiles(
             movements.into_iter().find(|(e, _m)| e.id() == active.value)
         {
             for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile, grid, _s)| {
-                let dist = calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y))
-                    .len() as i32;
+                let dist = calculate_a_star_path(
+                    (active_grid.x, active_grid.y),
+                    (grid.x, grid.y),
+                    &blocked,
+                )
+                .len() as i32;
                 dist > 0 && dist <= active_movement.distance && !tile.blocked
             }) {
                 sprite.color.set_r(1.0);
@@ -127,14 +136,17 @@ fn make_tiles(
 fn set_blocked_tiles(
     units: Query<&GridPosition, With<Unit>>,
     mut tiles: Query<(&GridPosition, &mut Tile)>,
+    mut blocked: ResMut<BlockedTiles>,
 ) {
     for (tile_pos, mut tile) in tiles.iter_mut() {
         if let Some(_unit_pos) = units
             .into_iter()
             .find(|u| u.x == tile_pos.x && u.y == tile_pos.y)
         {
+            blocked.0.insert((tile_pos.x, tile_pos.y), true);
             tile.blocked = true;
         } else {
+            blocked.0.insert((tile_pos.x, tile_pos.y), false);
             tile.blocked = false;
         }
     }
@@ -144,11 +156,13 @@ impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedPath>()
             .init_resource::<SelectedTile>()
+            .init_resource::<BlockedTiles>()
             .insert_resource(GridConfig {
                 tile_size: 64.0,
                 rows_cols: 9,
             })
             .add_startup_system(make_tiles)
+            .add_system(set_blocked_tiles)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove).with_system(set_blocked_tiles),
             )

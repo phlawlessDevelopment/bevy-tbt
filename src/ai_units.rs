@@ -1,4 +1,4 @@
-use crate::grid::{GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
+use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
@@ -125,6 +125,7 @@ fn select_move(
     mut phase: ResMut<State<TurnPhase>>,
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     player_grids_q: Query<&GridPosition, With<Player>>,
+    blocked: Res<BlockedTiles>,
 ) {
     let active = active.as_ref();
 
@@ -138,29 +139,42 @@ fn select_move(
             let mut reachable: Vec<(&Tile, &GridPosition, &Sprite)> = tiles
                 .iter()
                 .filter(|(tile, grid, _s)| {
-                    calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y)).len()
-                        as i32
+                    calculate_a_star_path(
+                        (active_grid.x, active_grid.y),
+                        (grid.x, grid.y),
+                        &blocked,
+                    )
+                    .len() as i32
                         <= active_movement.distance
                         && !tile.blocked
                 })
                 .collect();
             let mut player_grids: Vec<&GridPosition> = player_grids_q.iter().collect();
             player_grids.sort_by(|a, b| {
-                calculate_a_star_path((a.x, a.y), (active_grid.x, active_grid.y))
+                calculate_a_star_path((a.x, a.y), (active_grid.x, active_grid.y), &blocked)
                     .len()
-                    .cmp(&calculate_a_star_path((b.x, b.y), (active_grid.x, active_grid.y)).len())
+                    .cmp(
+                        &calculate_a_star_path(
+                            (b.x, b.y),
+                            (active_grid.x, active_grid.y),
+                            &blocked,
+                        )
+                        .len(),
+                    )
             });
             let closest_player_grid = player_grids[0];
             reachable.sort_by(|a, b| {
                 calculate_a_star_path(
                     (closest_player_grid.x, closest_player_grid.y),
                     (a.1.x, a.1.y),
+                    &blocked,
                 )
                 .len()
                 .cmp(
                     &calculate_a_star_path(
                         (closest_player_grid.x, closest_player_grid.y),
                         (b.1.x, b.1.y),
+                        &blocked,
                     )
                     .len(),
                 )

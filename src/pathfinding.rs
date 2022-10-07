@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use priority_queue::PriorityQueue;
 
-use crate::grid::{GridPosition, SelectedPath, SelectedTile};
+use crate::grid::{BlockedTiles, GridPosition, SelectedPath, SelectedTile};
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 use crate::units::Unit;
@@ -29,7 +29,11 @@ pub struct AllUnitsActed {
     pub value: bool,
 }
 
-pub fn calculate_a_star_path(from: (i32, i32), to: (i32, i32)) -> Vec<(i32, i32)> {
+pub fn calculate_a_star_path(
+    from: (i32, i32),
+    to: (i32, i32),
+    blocked: &Res<BlockedTiles>,
+) -> Vec<(i32, i32)> {
     let mut open_set: PriorityQueue<(i32, i32), Reverse<i32>> = PriorityQueue::new();
     let mut closed_set: HashMap<(i32, i32), Option<(i32, i32)>> = HashMap::new();
     let mut current_costs: HashMap<(i32, i32), i32> = HashMap::new();
@@ -49,13 +53,21 @@ pub fn calculate_a_star_path(from: (i32, i32), to: (i32, i32)) -> Vec<(i32, i32)
         }
 
         for (x, y) in adjacents(current) {
-            let new_cost = current_costs[&current] + EDGE_COST;
-            if !current_costs.contains_key(&(x, y)) || new_cost < current_costs[&(x, y)] {
-                current_costs.insert((x, y), new_cost);
-                let priority = new_cost + heuristic((to.0, to.1), (x, y));
-                open_set.push((x, y), Reverse(priority));
-                closed_set.insert((x, y), Some(current));
+            if let Some(is_blocked) = blocked.0.get(&(x, y)){
+                if !*is_blocked {
+                    let new_cost = current_costs[&current] + EDGE_COST;
+                    if !current_costs.contains_key(&(x, y)) || new_cost < current_costs[&(x, y)] {
+                        current_costs.insert((x, y), new_cost);
+                        let priority = new_cost + heuristic((to.0, to.1), (x, y));
+                        open_set.push((x, y), Reverse(priority));
+                        closed_set.insert((x, y), Some(current));
+                    }
+                }
             }
+            else{
+                continue;
+            }
+
         }
     }
     return a_star_path;
@@ -87,11 +99,15 @@ fn a_star_initializer(
     mut selected_path: ResMut<SelectedPath>,
     selected_tile: Res<SelectedTile>,
     active: ResMut<ActiveUnit>,
+    blocked: Res<BlockedTiles>,
 ) {
     let active = active.as_ref();
     if let Some((_e, grid)) = units.into_iter().find(|(e, _g)| e.id() == active.value) {
-        selected_path.tiles =
-            calculate_a_star_path((grid.x, grid.y), (selected_tile.x, selected_tile.y))
+        selected_path.tiles = calculate_a_star_path(
+            (grid.x, grid.y),
+            (selected_tile.x, selected_tile.y),
+            &blocked,
+        );
     }
 }
 

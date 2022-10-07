@@ -1,5 +1,5 @@
 use crate::camera::MainCamera;
-use crate::grid::{GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
+use crate::grid::{GridConfig, GridPosition, SelectedPath, SelectedTile, Tile, BlockedTiles};
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
@@ -157,6 +157,7 @@ fn select_move(
     active: Res<ActiveUnit>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
+    blocked:Res<BlockedTiles>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
@@ -177,7 +178,7 @@ fn select_move(
                     movements.into_iter().find(|(e, _m)| e.id() == active.value)
                 {
                     let dist =
-                        calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y))
+                        calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y),&blocked)
                             .len() as i32;
                     if dist >= 1 && dist <= active_movement.distance {
                         selected_tile.x = grid.x;
