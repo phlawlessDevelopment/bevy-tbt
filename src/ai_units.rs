@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::grid::{
     calculate_manhattan_distance, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile,
 };
-use crate::pathfinding::AllUnitsActed;
+use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
@@ -90,7 +90,7 @@ fn spawn_unit(
         .insert(Unit)
         .insert(Ai { has_acted: false })
         .insert(Name::new(format!("Ai Unit {}", i)))
-        .insert(Movement { distance: 2 })
+        .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
         .insert(GridPosition {
             x: i / grid_config.rows_cols + grid_config.rows_cols - 1,
@@ -140,20 +140,39 @@ fn select_move(
             let mut reachable: Vec<(&Tile, &GridPosition, &Sprite)> = tiles
                 .iter()
                 .filter(|(tile, grid, _s)| {
-                    calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance
+                    calculate_a_star_path(&tiles, (active_grid.x, active_grid.y), (grid.x, grid.y))
+                        .len() as i32
+                        <= active_movement.distance
                         && !tile.blocked
                 })
                 .collect();
             let mut player_grids: Vec<&GridPosition> = player_grids_q.iter().collect();
             player_grids.sort_by(|a, b| {
-                calculate_manhattan_distance(a, active_grid)
-                    .cmp(&calculate_manhattan_distance(b, active_grid))
+                calculate_a_star_path(&tiles, (a.x, a.y), (active_grid.x, active_grid.y))
+                    .len()
+                    .cmp(
+                        &calculate_a_star_path(&tiles, (b.x, b.y), (active_grid.x, active_grid.y))
+                            .len(),
+                    )
             });
             let closest_player_grid = player_grids[0];
             reachable.sort_by(|a, b| {
-                calculate_manhattan_distance(a.1, closest_player_grid)
-                    .cmp(&calculate_manhattan_distance(b.1, closest_player_grid))
+                calculate_a_star_path(
+                    &tiles,
+                    (a.1.x, a.1.y),
+                    (closest_player_grid.x, closest_player_grid.y),
+                )
+                .len()
+                .cmp(
+                    &calculate_a_star_path(
+                        &tiles,
+                        (b.1.x, b.1.y),
+                        (closest_player_grid.x, closest_player_grid.y),
+                    )
+                    .len(),
+                )
             });
+            println!("{:?}", reachable[reachable.len()-1]);
             selected_tile.x = reachable[0].1.x;
             selected_tile.y = reachable[0].1.y;
             selected_tile.set_changed();

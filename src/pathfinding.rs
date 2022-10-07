@@ -46,6 +46,70 @@ pub struct AllUnitsActed {
     pub value: bool,
 }
 
+pub fn calculate_a_star_path(
+    tiles: &Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
+    from: (i32, i32),
+    to: (i32, i32),
+) -> Vec<(i32, i32)> {
+    let mut open_set: PriorityQueue<(i32, i32), Reverse<i32>> = PriorityQueue::new();
+    let mut closed_set: HashMap<(i32, i32), Option<(i32, i32)>> = HashMap::new();
+    let mut current_costs: HashMap<(i32, i32), i32> = HashMap::new();
+    let mut selected_path: Vec<(i32, i32)> = Vec::new();
+
+    open_set.clear();
+    closed_set.clear();
+    current_costs.clear();
+    open_set.push(from, Reverse(0));
+    closed_set.insert(from, None);
+    current_costs.insert(from, 0);
+
+    while !open_set.is_empty() {
+        let current = open_set.pop().unwrap().0;
+
+        if current == (to.0, to.1) {
+            set_path(&mut closed_set, from, &mut selected_path, current);
+            open_set.clear();
+            break;
+        }
+
+        for (x, y) in adjacents(current) {
+            let new_cost = current_costs[&current] + EDGE_COST;
+            if let Some((_tile, _grid, _sprite)) = tiles
+                .into_iter()
+                .find(|(t,g,_s)| g.x == x && g.y == y && !t.blocked)
+            {
+                if !current_costs.contains_key(&(x, y)) || new_cost < current_costs[&(x, y)] {
+                    current_costs.insert((x, y), new_cost);
+                    let priority = new_cost + heuristic((to.0, to.1), (x, y));
+                    open_set.push((x, y), Reverse(priority));
+                    closed_set.insert((x, y), Some(current));
+                }
+            }
+        }
+    }
+    return selected_path;
+}
+fn set_path(
+    closed_set: &mut HashMap<(i32, i32), Option<(i32, i32)>>,
+    from: (i32, i32),
+    selected_path: &mut Vec<(i32, i32)>,
+    to: (i32, i32),
+) {
+    let mut current_tile = to;
+    selected_path.clear();
+
+    while current_tile != from {
+        selected_path.push(current_tile);
+
+        if closed_set[&current_tile] == None {
+            println!("Did not find path");
+            break;
+        }
+
+        current_tile = closed_set[&current_tile].unwrap();
+    }
+}
+
 fn a_star_initializer(
     units: Query<(Entity, &GridPosition), With<Unit>>,
     tiles: Query<(&GridPosition, &Tile)>,
@@ -149,11 +213,11 @@ fn heuristic(goal: (i32, i32), next_step: (i32, i32)) -> i32 {
 }
 
 fn a_star_setup(
-    mut frontier: ResMut<OpenSet>,
-    mut came_from: ResMut<ClosedSet>,
+    mut open_set: ResMut<OpenSet>,
+    mut closed_set: ResMut<ClosedSet>,
     mut current_costs: ResMut<CurrentCosts>,
 ) {
-    frontier.0.push((0, 0), Reverse(0));
-    came_from.0.insert((0, 0), None);
+    open_set.0.push((0, 0), Reverse(0));
+    closed_set.0.insert((0, 0), None);
     current_costs.0.insert((0, 0), 0);
 }

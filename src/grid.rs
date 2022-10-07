@@ -4,10 +4,11 @@ use crate::{
     units::{Movement, Unit},
 };
 use bevy::prelude::*;
+use bevy_inspector_egui::Inspectable;
 
 pub struct GridPlugin;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug,Inspectable)]
 pub struct GridPosition {
     pub x: i32,
     pub y: i32,
