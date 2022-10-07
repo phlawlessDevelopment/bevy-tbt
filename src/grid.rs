@@ -1,20 +1,22 @@
 use crate::{
+    pathfinding::calculate_a_star_path,
     states::TurnPhase,
     turns::ActiveUnit,
     units::{Movement, Unit},
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
+use std::collections::HashMap;
 
 pub struct GridPlugin;
 
-#[derive(Component, Debug,Inspectable)]
+#[derive(Component, Debug, Inspectable)]
 pub struct GridPosition {
     pub x: i32,
     pub y: i32,
 }
 
-#[derive(Component,Debug)]
+#[derive(Component, Debug)]
 pub struct Tile {
     pub blocked: bool,
 }
@@ -41,9 +43,7 @@ pub struct SelectedTile {
     pub x: i32,
     pub y: i32,
 }
-pub fn calculate_manhattan_distance(a: &GridPosition, b: &GridPosition) -> i32 {
-    i32::abs(b.x - a.x) + i32::abs(b.y - a.y)
-}
+
 fn highlight_reachable_tiles(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
@@ -51,6 +51,12 @@ fn highlight_reachable_tiles(
     active: Res<ActiveUnit>,
 ) {
     let active = active.as_ref();
+    let mut a_star_tiles: HashMap<(i32, i32), bool> = HashMap::new();
+
+    for (t, g, s) in tiles.to_readonly().into_iter() {
+        a_star_tiles.insert((g.x, g.y), t.blocked);
+    }
+
     if let Some((_e, active_grid)) = unit_grids
         .into_iter()
         .find(|(e, _g)| e.id() == active.value)
@@ -59,8 +65,9 @@ fn highlight_reachable_tiles(
             movements.into_iter().find(|(e, _m)| e.id() == active.value)
         {
             for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile, grid, _s)| {
-                calculate_manhattan_distance(&active_grid, grid) <= active_movement.distance
-                    && !tile.blocked
+                let dist = calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y))
+                    .len() as i32;
+                dist > 0 && dist <= active_movement.distance && !tile.blocked
             }) {
                 sprite.color.set_r(1.0);
                 sprite.color.set_a(0.3);
@@ -113,8 +120,7 @@ fn make_tiles(
     for i in 0..81 {
         let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
         let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let tile = 
-        spawn_tile(x, y, i, &mut commands, &asset_server, &grid_config);
+        let tile = spawn_tile(x, y, i, &mut commands, &asset_server, &grid_config);
         tiles.push(tile);
     }
     commands
@@ -157,7 +163,7 @@ impl Plugin for GridPlugin {
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove)
-                    .with_system(clear_highlighted_tiles)
+                    .with_system(clear_highlighted_tiles.after(set_blocked_tiles))
                     .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
             )
             .add_system_set(

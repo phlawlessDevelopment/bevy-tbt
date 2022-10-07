@@ -1,13 +1,11 @@
-use bevy::prelude::*;
-
-use crate::grid::{
-    calculate_manhattan_distance, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile,
-};
+use crate::grid::{GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 use crate::units::{Health, Movement, Unit};
+use bevy::prelude::*;
+use std::collections::HashMap;
 
 pub struct AiUnitsPlugin;
 
@@ -126,10 +124,11 @@ fn select_move(
     movements: Query<(Entity, &Movement), With<Ai>>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
-    tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
+    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     player_grids_q: Query<&GridPosition, With<Player>>,
 ) {
     let active = active.as_ref();
+
     if let Some((_e, active_grid)) = unit_grids
         .into_iter()
         .find(|(e, _g)| e.id() == active.value)
@@ -140,39 +139,34 @@ fn select_move(
             let mut reachable: Vec<(&Tile, &GridPosition, &Sprite)> = tiles
                 .iter()
                 .filter(|(tile, grid, _s)| {
-                    calculate_a_star_path(&tiles, (active_grid.x, active_grid.y), (grid.x, grid.y))
-                        .len() as i32
+                    calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y)).len()
+                        as i32
                         <= active_movement.distance
                         && !tile.blocked
                 })
                 .collect();
             let mut player_grids: Vec<&GridPosition> = player_grids_q.iter().collect();
             player_grids.sort_by(|a, b| {
-                calculate_a_star_path(&tiles, (a.x, a.y), (active_grid.x, active_grid.y))
+                calculate_a_star_path((a.x, a.y), (active_grid.x, active_grid.y))
                     .len()
-                    .cmp(
-                        &calculate_a_star_path(&tiles, (b.x, b.y), (active_grid.x, active_grid.y))
-                            .len(),
-                    )
+                    .cmp(&calculate_a_star_path((b.x, b.y), (active_grid.x, active_grid.y)).len())
             });
             let closest_player_grid = player_grids[0];
             reachable.sort_by(|a, b| {
                 calculate_a_star_path(
-                    &tiles,
-                    (a.1.x, a.1.y),
                     (closest_player_grid.x, closest_player_grid.y),
+                    (a.1.x, a.1.y),
                 )
                 .len()
                 .cmp(
                     &calculate_a_star_path(
-                        &tiles,
-                        (b.1.x, b.1.y),
                         (closest_player_grid.x, closest_player_grid.y),
+                        (b.1.x, b.1.y),
                     )
                     .len(),
                 )
             });
-            println!("{:?}", reachable[reachable.len()-1]);
+
             selected_tile.x = reachable[0].1.x;
             selected_tile.y = reachable[0].1.y;
             selected_tile.set_changed();

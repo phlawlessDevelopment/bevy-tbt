@@ -1,13 +1,12 @@
-use bevy::prelude::*;
-use bevy::render::camera::RenderTarget;
-
 use crate::camera::MainCamera;
-use crate::grid::{
-    calculate_manhattan_distance, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile,
-};
+use crate::grid::{GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
+use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 use crate::units::{Health, Movement, Unit};
+use bevy::prelude::*;
+use bevy::render::camera::RenderTarget;
+use std::collections::HashMap;
 
 pub struct PlayerUnitsPlugin;
 
@@ -152,9 +151,8 @@ fn get_mouse_position(
 fn select_move(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    tiles: Query<(&GridPosition, &mut Transform), With<Tile>>,
+    tiles: Query<(&Tile, &GridPosition, &mut Transform)>,
     player_unit_grids: Query<(Entity, &GridPosition), With<Player>>,
-    // ai_unit_grids: Query<(Entity, &GridPosition), With<Ai>>,
     movements: Query<(Entity, &Movement)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: Res<ActiveUnit>,
@@ -162,15 +160,20 @@ fn select_move(
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
+        let mut a_star_tiles: HashMap<(i32, i32), bool> = HashMap::new();
+
+        for (t, g, s) in tiles.to_readonly().into_iter() {
+            a_star_tiles.insert((g.x, g.y), t.blocked);
+        }
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        let selection = tiles.into_iter().find(|(_grid, transform)| {
+        let selection = tiles.into_iter().find(|(_tile, _grid, transform)| {
             mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
                 <= min_dist
         });
-        if let Some((grid, _transform)) = selection {
+        if let Some((_tile, grid, _transform)) = selection {
             let active = active.as_ref();
             if let Some((_e, active_grid)) = player_unit_grids
                 .into_iter()
@@ -179,7 +182,11 @@ fn select_move(
                 if let Some((_e, active_movement)) =
                     movements.into_iter().find(|(e, _m)| e.id() == active.value)
                 {
-                    let dist = calculate_manhattan_distance(&active_grid, grid);
+                    let dist = calculate_a_star_path(
+                        (active_grid.x, active_grid.y),
+                        (grid.x, grid.y),
+                    )
+                    .len() as i32;
                     if dist >= 1 && dist <= active_movement.distance {
                         selected_tile.x = grid.x;
                         selected_tile.y = grid.y;
