@@ -106,33 +106,34 @@ fn get_path(
 
 fn a_star_initializer(
     units: Query<(Entity, &GridPosition), With<Unit>>,
-    tiles: Query<(&GridPosition, &Tile)>,
-    mut open_set: ResMut<OpenSet>,
-    mut closed_set: ResMut<ClosedSet>,
-    mut current_costs: ResMut<CurrentCosts>,
+    // tiles: Query<(&GridPosition, &Tile)>,
+    // mut open_set: ResMut<OpenSet>,
+    // mut closed_set: ResMut<ClosedSet>,
+    // mut current_costs: ResMut<CurrentCosts>,
     mut selected_path: ResMut<SelectedPath>,
     selected_tile: Res<SelectedTile>,
     active: ResMut<ActiveUnit>,
 ) {
     let active = active.as_ref();
     if let Some((_e, grid)) = units.into_iter().find(|(e, _g)| e.id() == active.value) {
-        open_set.0.clear();
-        closed_set.0.clear();
-        current_costs.0.clear();
-        let unit_position = (grid.x, grid.y);
-        open_set.0.push(unit_position, Reverse(0));
-        closed_set.0.insert(unit_position, None);
-        current_costs.0.insert(unit_position, 0);
+        selected_path.tiles = calculate_a_star_path((grid.x, grid.y),(selected_tile.x,selected_tile.y))
+        // open_set.0.clear();
+        // closed_set.0.clear();
+        // current_costs.0.clear();
+        // let unit_position = ;
+        // open_set.0.push(unit_position, Reverse(0));
+        // closed_set.0.insert(unit_position, None);
+        // current_costs.0.insert(unit_position, 0);
 
-        create_path(
-            tiles,
-            &mut open_set,
-            &mut closed_set,
-            &mut current_costs,
-            &mut selected_path,
-            unit_position,
-            &selected_tile,
-        )
+        // create_path(
+        //     tiles,
+        //     &mut open_set,
+        //     &mut closed_set,
+        //     &mut current_costs,
+        //     &mut selected_path,
+        //     unit_position,
+        //     &selected_tile,
+        // )
     }
 }
 
