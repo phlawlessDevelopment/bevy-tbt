@@ -5,7 +5,6 @@ use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
 use crate::units::{Health, Movement, Unit};
 use bevy::prelude::*;
-use std::collections::HashMap;
 
 pub struct AiUnitsPlugin;
 

@@ -6,7 +6,6 @@ use crate::{
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
-use std::collections::HashMap;
 
 pub struct GridPlugin;
 
@@ -51,11 +50,6 @@ fn highlight_reachable_tiles(
     active: Res<ActiveUnit>,
 ) {
     let active = active.as_ref();
-    let mut a_star_tiles: HashMap<(i32, i32), bool> = HashMap::new();
-
-    for (t, g, s) in tiles.to_readonly().into_iter() {
-        a_star_tiles.insert((g.x, g.y), t.blocked);
-    }
 
     if let Some((_e, active_grid)) = unit_grids
         .into_iter()

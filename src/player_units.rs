@@ -6,7 +6,6 @@ use crate::turns::ActiveUnit;
 use crate::units::{Health, Movement, Unit};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
-use std::collections::HashMap;
 
 pub struct PlayerUnitsPlugin;
 
@@ -160,11 +159,6 @@ fn select_move(
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
-        let mut a_star_tiles: HashMap<(i32, i32), bool> = HashMap::new();
-
-        for (t, g, s) in tiles.to_readonly().into_iter() {
-            a_star_tiles.insert((g.x, g.y), t.blocked);
-        }
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
@@ -182,11 +176,9 @@ fn select_move(
                 if let Some((_e, active_movement)) =
                     movements.into_iter().find(|(e, _m)| e.id() == active.value)
                 {
-                    let dist = calculate_a_star_path(
-                        (active_grid.x, active_grid.y),
-                        (grid.x, grid.y),
-                    )
-                    .len() as i32;
+                    let dist =
+                        calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y))
+                            .len() as i32;
                     if dist >= 1 && dist <= active_movement.distance {
                         selected_tile.x = grid.x;
                         selected_tile.y = grid.y;
