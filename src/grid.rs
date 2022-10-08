@@ -1,8 +1,9 @@
 use crate::{
     pathfinding::calculate_a_star_path,
+    player_units::Player,
     states::TurnPhase,
     turns::ActiveUnit,
-    units::{Movement, Unit},
+    units::{Attack, Health, Movement, Unit},
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
@@ -47,6 +48,36 @@ pub struct SelectedTile {
     pub y: i32,
 }
 
+fn highlight_attackable_tiles(
+    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
+    ai_units: Query<(Entity, &GridPosition), (With<Health>, Without<Player>)>,
+    player_units: Query<(Entity, &Attack, &Player, &GridPosition)>,
+    active: Res<ActiveUnit>,
+) {
+    let active = active.as_ref();
+
+    if let Some((_e, attack, player, active_grid)) = player_units
+        .into_iter()
+        .find(|(e, _a, _p, _g)| e.id() == active.value)
+    {
+        for (_e, grid) in ai_units.into_iter() {
+            let dist = std::cmp::max(
+                i32::abs(grid.x - active_grid.x),
+                i32::abs(grid.y - active_grid.y),
+            );
+            if dist > 0 && dist <= attack.range {
+                if let Some((_tile, grid, mut sprite)) = tiles
+                    .iter_mut()
+                    .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
+                {
+                    sprite.color.set_b(0.0);
+                    sprite.color.set_g(0.0);
+                    sprite.color.set_a(0.6);
+                }
+            }
+        }
+    }
+}
 fn highlight_reachable_tiles(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
@@ -72,12 +103,14 @@ fn highlight_reachable_tiles(
                 .len() as i32;
                 dist > 0 && dist <= active_movement.distance && !tile.blocked
             }) {
-                sprite.color.set_r(1.0);
+                sprite.color.set_r(0.0);
+                sprite.color.set_b(0.0);
                 sprite.color.set_a(0.3);
             }
         }
     }
 }
+
 fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
     for mut sprite in tiles.iter_mut() {
         sprite.color.set_r(1.0);
@@ -86,7 +119,12 @@ fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
         sprite.color.set_a(1.0);
     }
 }
-
+fn skip_phase(mut phase: ResMut<State<TurnPhase>>, mut key_input: ResMut<Input<KeyCode>>) {
+    if key_input.just_pressed(KeyCode::Space) {
+        phase.set(TurnPhase::AISelectUnit).unwrap();
+        key_input.clear();
+    }
+}
 fn spawn_tile(
     x: f32,
     y: f32,
@@ -162,7 +200,7 @@ impl Plugin for GridPlugin {
                 rows_cols: 9,
             })
             .add_startup_system(make_tiles)
-            .add_system(set_blocked_tiles)
+            // .add_system(set_blocked_tiles)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove).with_system(set_blocked_tiles),
             )
@@ -174,6 +212,16 @@ impl Plugin for GridPlugin {
                     .with_system(clear_highlighted_tiles.after(set_blocked_tiles))
                     .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
             )
+            .add_system_set(
+                SystemSet::on_enter(TurnPhase::SelectTarget)
+                    .with_system(clear_highlighted_tiles.after(set_blocked_tiles))
+                    .with_system(highlight_attackable_tiles.after(clear_highlighted_tiles)),
+            )
+            .add_system_set(
+                SystemSet::on_exit(TurnPhase::SelectTarget)
+                    .with_system(clear_highlighted_tiles),
+            )
+            .add_system(skip_phase)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::DoMove).with_system(clear_highlighted_tiles),
             )

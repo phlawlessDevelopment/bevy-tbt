@@ -40,7 +40,7 @@ fn move_active_unit(
 
             if direction.length() > 1.0 {
                 transform.translation +=
-                    direction.normalize() * time.delta_seconds() * grid_config.tile_size;
+                    direction.normalize() * time.delta_seconds() * 100.0;
             } else {
                 transform.translation = Vec3::new(
                     next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),

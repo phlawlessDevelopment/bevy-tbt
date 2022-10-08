@@ -1,11 +1,12 @@
+use crate::ai_units::Ai;
 use crate::camera::MainCamera;
-use crate::grid::{GridConfig, GridPosition, SelectedPath, SelectedTile, Tile, BlockedTiles};
+use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
-use crate::units::{Health, Movement, Unit};
-use bevy::prelude::*;
+use crate::units::{Attack, Health, Movement, Unit};
 use bevy::render::camera::RenderTarget;
+use bevy::{prelude::*, transform};
 
 pub struct PlayerUnitsPlugin;
 
@@ -40,8 +41,7 @@ fn move_active_unit(
             ) - transform.translation;
 
             if direction.length() > 1.0 {
-                transform.translation +=
-                    direction.normalize() * time.delta_seconds() * grid_config.tile_size;
+                transform.translation += direction.normalize() * time.delta_seconds() * 100.0;
             } else {
                 transform.translation = Vec3::new(
                     next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
@@ -91,6 +91,7 @@ fn spawn_unit(
         .insert(Name::new(format!("Player Unit {}", i)))
         .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
+        .insert(Attack { dmg: 1, range: 1 })
         .insert(GridPosition {
             x: i / grid_config.rows_cols,
             y: i % grid_config.rows_cols,
@@ -157,7 +158,7 @@ fn select_move(
     active: Res<ActiveUnit>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
-    blocked:Res<BlockedTiles>,
+    blocked: Res<BlockedTiles>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
@@ -177,9 +178,12 @@ fn select_move(
                 if let Some((_e, active_movement)) =
                     movements.into_iter().find(|(e, _m)| e.id() == active.value)
                 {
-                    let dist =
-                        calculate_a_star_path((active_grid.x, active_grid.y), (grid.x, grid.y),&blocked)
-                            .len() as i32;
+                    let dist = calculate_a_star_path(
+                        (active_grid.x, active_grid.y),
+                        (grid.x, grid.y),
+                        &blocked,
+                    )
+                    .len() as i32;
                     if dist >= 1 && dist <= active_movement.distance {
                         selected_tile.x = grid.x;
                         selected_tile.y = grid.y;
@@ -192,6 +196,30 @@ fn select_move(
     }
 }
 
+fn select_attacker(
+    mut mouse_input: ResMut<Input<MouseButton>>,
+    windows: Res<Windows>,
+    entities: Query<(Entity, &mut Transform), With<Player>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut active: ResMut<ActiveUnit>,
+    mut phase: ResMut<State<TurnPhase>>,
+) {
+    if mouse_input.just_pressed(MouseButton::Left) {
+        let mouse_pos = get_mouse_position(windows, q_camera);
+        //get closest
+        let min_dist = 32.0;
+        // let mut selection: Option<&Label> = None;
+        let selection = entities.into_iter().find(|(_e, transform)| {
+            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                <= min_dist
+        });
+        if let Some((e, _transform)) = selection {
+            active.value = e.id();
+            phase.set(TurnPhase::SelectTarget).unwrap();
+            mouse_input.reset(MouseButton::Left);
+        }
+    }
+}
 fn select_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
@@ -216,8 +244,66 @@ fn select_unit(
         }
     }
 }
+fn select_target(
+    mut mouse_input: ResMut<Input<MouseButton>>,
+    windows: Res<Windows>,
+    mut ai_units: Query<(&GridPosition, &Transform, &mut Health), With<Ai>>,
+    mut player_units: Query<(Entity, &mut Player, &GridPosition, &Attack), With<Player>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    active: ResMut<ActiveUnit>,
+    mut phase: ResMut<State<TurnPhase>>,
+) {
+    if mouse_input.just_pressed(MouseButton::Left) {
+        let mouse_pos = get_mouse_position(windows, q_camera);
+        //get closest
+        let min_dist = 32.0;
+        if let Some((active, mut active_player, active_grid, active_attack)) = player_units
+            .iter_mut()
+            .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
+        {
+            let selection = ai_units.iter_mut().find(|(grid, transform, health)| {
+                let dist = std::cmp::max(
+                    i32::abs(grid.x - active_grid.x),
+                    i32::abs(grid.y - active_grid.y),
+                );
+                dist > 0
+                    && dist <= active_attack.range
+                    && mouse_pos
+                        .distance(Vec2::new(transform.translation.x, transform.translation.y))
+                        <= min_dist
+            });
+            if let Some((_g, _t, mut target_health)) = selection {
+                target_health.value -= active_attack.dmg;
+                println!(
+                    "dmg {} , remaining {}",
+                    active_attack.dmg, target_health.value
+                );
+                phase.set(TurnPhase::SelectAttacker).unwrap();
+                mouse_input.clear();
+                active_player.has_acted = true;
+            }
+        }
+    }
+}
+fn check_player_has_moved(
+    mut player_units: Query<&mut Player>,
+    mut phase: ResMut<State<TurnPhase>>,
+) {
+    let mut still_to_act = false;
+    for unit in player_units.iter() {
+        if unit.has_acted == false {
+            still_to_act = true;
+        }
+    }
+    if !still_to_act {
+        for mut unit in player_units.iter_mut() {
+            unit.has_acted = false;
+        }
+        phase.set(TurnPhase::SelectAttacker).unwrap();
+    }
+}
 
-fn check_player_has_acted(
+fn check_player_has_attacked(
     mut player_units: Query<&mut Player>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
@@ -247,8 +333,16 @@ impl Plugin for PlayerUnitsPlugin {
             .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
             .add_system_set(
                 SystemSet::on_update(TurnPhase::SelectUnit)
-                    .with_system(check_player_has_acted)
-                    .with_system(select_unit.after(check_player_has_acted)),
+                    .with_system(check_player_has_moved)
+                    .with_system(select_unit.after(check_player_has_moved)),
+            )
+            .add_system_set(
+                SystemSet::on_update(TurnPhase::SelectAttacker)
+                    .with_system(check_player_has_attacked)
+                    .with_system(select_attacker),
+            )
+            .add_system_set(
+                SystemSet::on_update(TurnPhase::SelectTarget).with_system(select_target),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
