@@ -67,10 +67,15 @@ fn spawn_unit(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     grid_config: &Res<GridConfig>,
+    sprite_path: &str,
+    movement: i32,
+    health: i32,
+    dmg: i32,
+    range: i32,
 ) -> Entity {
     commands
         .spawn_bundle(SpriteBundle {
-            texture: asset_server.load("sprites/skull.png"),
+            texture: asset_server.load(sprite_path),
             transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
             sprite: Sprite {
                 color: Color::Rgba {
@@ -86,9 +91,15 @@ fn spawn_unit(
         .insert(Unit)
         .insert(Ai { has_acted: false })
         .insert(Name::new(format!("Ai Unit {}", i)))
-        .insert(Attack { dmg: 1, range: 1 })
-        .insert(Movement { distance: 4 })
-        .insert(Health { max: 2, value: 2 })
+        .insert(Attack {
+            dmg: dmg,
+            range: range,
+        })
+        .insert(Movement { distance: movement })
+        .insert(Health {
+            max: health,
+            value: health,
+        })
         .insert(GridPosition {
             x: i / grid_config.rows_cols + grid_config.rows_cols - 1,
             y: i % grid_config.rows_cols,
@@ -102,12 +113,29 @@ fn make_units(
     grid_config: Res<GridConfig>,
 ) {
     let mut units = Vec::new();
-    for i in 0..4 {
+    let sprites = ["sprites/sword.png", "sprites/fire.png", "sprites/skull.png"];
+    let movements = [4, 3, 1];
+    let healths = [20, 15, 10];
+    let dmgs = [3, 2, 5];
+    let ranges = [1, 5, 2];
+    for i in 0..sprites.len() as i32 {
         let x = (((i / grid_config.rows_cols) + grid_config.rows_cols - 1) as f32
             * grid_config.tile_size)
             - grid_config.offset();
         let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let unit = spawn_unit(x, y, i, &mut commands, &asset_server, &grid_config);
+        let unit = spawn_unit(
+            x,
+            y,
+            i,
+            &mut commands,
+            &asset_server,
+            &grid_config,
+            sprites[i as usize],
+            movements[i as usize],
+            healths[i as usize],
+            dmgs[i as usize],
+            ranges[i as usize],
+        );
         units.push(unit);
     }
     commands
