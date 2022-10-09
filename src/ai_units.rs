@@ -2,7 +2,7 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::units::{Attack, Health, Movement, Unit,ActiveUnit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Unit};
 use bevy::prelude::*;
 
 pub struct AiUnitsPlugin;
@@ -88,7 +88,7 @@ fn spawn_unit(
         .insert(Name::new(format!("Ai Unit {}", i)))
         .insert(Attack { dmg: 1, range: 1 })
         .insert(Movement { distance: 4 })
-        .insert(Health { max: 5, value: 5 })
+        .insert(Health { max: 2, value: 2 })
         .insert(GridPosition {
             x: i / grid_config.rows_cols + grid_config.rows_cols - 1,
             y: i % grid_config.rows_cols,
@@ -281,28 +281,30 @@ fn check_enemy_has_attacked(
 }
 fn select_target(
     mut ai_units: Query<(Entity, &mut Ai, &GridPosition, &Attack)>,
-    mut player_units: Query<(&GridPosition, &Transform, &mut Health), With<Player>>,
+    mut player_units: Query<(Entity, &GridPosition, &Transform, &mut Health), With<Player>>,
     active: Res<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
+    mut commands: Commands,
 ) {
     if let Some((active, mut active_ai, active_grid, active_attack)) = ai_units
         .iter_mut()
         .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
     {
-        let selection = player_units.iter_mut().find(|(grid, transform, health)| {
-            let dist = std::cmp::max(
-                i32::abs(grid.x - active_grid.x),
-                i32::abs(grid.y - active_grid.y),
-            );
-            dist > 0 && dist <= active_attack.range
-        });
-        match selection {
-            Some((_g, _t, mut target_health)) => {
-                target_health.value -= active_attack.dmg;
-                println!(
-                    "dmg {} , remaining {}",
-                    active_attack.dmg, target_health.value
+        let selection = player_units
+            .iter_mut()
+            .find(|(e, grid, transform, health)| {
+                let dist = std::cmp::max(
+                    i32::abs(grid.x - active_grid.x),
+                    i32::abs(grid.y - active_grid.y),
                 );
+                dist > 0 && dist <= active_attack.range
+            });
+        match selection {
+            Some((e, _g, _t, mut target_health)) => {
+                target_health.value -= active_attack.dmg;
+                if target_health.value <= 0 {
+                    commands.entity(e).despawn_recursive();
+                }
                 phase.set(TurnPhase::AISelectAttacker).unwrap();
                 active_ai.has_acted = true;
             }

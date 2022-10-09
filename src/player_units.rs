@@ -89,7 +89,7 @@ fn spawn_unit(
         .insert(Player { has_acted: false })
         .insert(Name::new(format!("Player Unit {}", i)))
         .insert(Movement { distance: 4 })
-        .insert(Health { max: 5, value: 5 })
+        .insert(Health { max: 20, value: 20 })
         .insert(Attack { dmg: 1, range: 1 })
         .insert(GridPosition {
             x: i / grid_config.rows_cols,
@@ -246,11 +246,12 @@ fn select_unit(
 fn select_target(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    mut ai_units: Query<(&GridPosition, &Transform, &mut Health), With<Ai>>,
+    mut ai_units: Query<(Entity,&GridPosition, &Transform, &mut Health), With<Ai>>,
     mut player_units: Query<(Entity, &mut Player, &GridPosition, &Attack), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
+    mut commands: Commands,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
@@ -260,7 +261,7 @@ fn select_target(
             .iter_mut()
             .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
         {
-            let selection = ai_units.iter_mut().find(|(grid, transform, health)| {
+            let selection = ai_units.iter_mut().find(|(e,grid, transform, health)| {
                 let dist = std::cmp::max(
                     i32::abs(grid.x - active_grid.x),
                     i32::abs(grid.y - active_grid.y),
@@ -271,12 +272,11 @@ fn select_target(
                         .distance(Vec2::new(transform.translation.x, transform.translation.y))
                         <= min_dist
             });
-            if let Some((_g, _t, mut target_health)) = selection {
+            if let Some((e,_g, _t, mut target_health)) = selection {
                 target_health.value -= active_attack.dmg;
-                println!(
-                    "dmg {} , remaining {}",
-                    active_attack.dmg, target_health.value
-                );
+                if target_health.value<=0{
+                    commands.entity(e).despawn_recursive();
+                }
                 phase.set(TurnPhase::SelectAttacker).unwrap();
                 mouse_input.clear();
                 active_player.has_acted = true;
