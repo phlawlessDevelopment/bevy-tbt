@@ -66,6 +66,7 @@ fn spawn_unit(
     x: f32,
     y: f32,
     i: i32,
+    grid:(i32,i32),
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     grid_config: &Res<GridConfig>,
@@ -103,8 +104,8 @@ fn spawn_unit(
             range: range,
         })
         .insert(GridPosition {
-            x: i / grid_config.rows_cols,
-            y: i % grid_config.rows_cols,
+            x: grid.0,
+            y: grid.1,
         })
         .id()
 }
@@ -120,14 +121,16 @@ fn make_units(
     let healths = [20, 15, 10];
     let dmgs = [3, 2, 5];
     let ranges = [1, 5, 2];
+    let positions = [(0, 1), (1, 0), (0, 0)];
 
     for i in 0..sprites.len() as i32 {
-        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
+        let x = (positions[i as usize].0 as f32 * grid_config.tile_size) - grid_config.offset();
+        let y = (positions[i as usize].1 as f32 * grid_config.tile_size) - grid_config.offset();
         let unit = spawn_unit(
             x,
             y,
             i,
+            positions[i as usize],
             &mut commands,
             &asset_server,
             &grid_config,
