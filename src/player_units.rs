@@ -3,7 +3,7 @@ use crate::camera::MainCamera;
 use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
-use crate::units::{Attack, Health, Movement, Unit, ActiveUnit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Unit};
 use bevy::render::camera::RenderTarget;
 use bevy::{prelude::*, transform};
 
@@ -69,10 +69,15 @@ fn spawn_unit(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     grid_config: &Res<GridConfig>,
+    sprite_path: &str,
+    movement: i32,
+    health: i32,
+    dmg: i32,
+    range: i32,
 ) -> Entity {
     commands
         .spawn_bundle(SpriteBundle {
-            texture: asset_server.load("sprites/chess_pawn.png"),
+            texture: asset_server.load(sprite_path),
             transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
             sprite: Sprite {
                 color: Color::Rgba {
@@ -88,9 +93,15 @@ fn spawn_unit(
         .insert(Unit)
         .insert(Player { has_acted: false })
         .insert(Name::new(format!("Player Unit {}", i)))
-        .insert(Movement { distance: 4 })
-        .insert(Health { max: 20, value: 20 })
-        .insert(Attack { dmg: 1, range: 1 })
+        .insert(Movement { distance: movement })
+        .insert(Health {
+            max: health,
+            value: health,
+        })
+        .insert(Attack {
+            dmg: dmg,
+            range: range,
+        })
         .insert(GridPosition {
             x: i / grid_config.rows_cols,
             y: i % grid_config.rows_cols,
@@ -104,10 +115,28 @@ fn make_units(
     grid_config: Res<GridConfig>,
 ) {
     let mut units = Vec::new();
-    for i in 0..1 {
+    let sprites = ["sprites/sword.png", "sprites/fire.png", "sprites/crown.png"];
+    let movements = [4, 3, 1];
+    let healths = [20, 15, 10];
+    let dmgs = [3, 2, 5];
+    let ranges = [1, 5, 2];
+
+    for i in 0..sprites.len() as i32 {
         let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
         let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let unit = spawn_unit(x, y, i, &mut commands, &asset_server, &grid_config);
+        let unit = spawn_unit(
+            x,
+            y,
+            i,
+            &mut commands,
+            &asset_server,
+            &grid_config,
+            sprites[i as usize],
+            movements[i as usize],
+            healths[i as usize],
+            dmgs[i as usize],
+            ranges[i as usize],
+        );
         units.push(unit);
     }
     commands
@@ -246,7 +275,7 @@ fn select_unit(
 fn select_target(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    mut ai_units: Query<(Entity,&GridPosition, &Transform, &mut Health), With<Ai>>,
+    mut ai_units: Query<(Entity, &GridPosition, &Transform, &mut Health), With<Ai>>,
     mut player_units: Query<(Entity, &mut Player, &GridPosition, &Attack), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: ResMut<ActiveUnit>,
@@ -261,7 +290,7 @@ fn select_target(
             .iter_mut()
             .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
         {
-            let selection = ai_units.iter_mut().find(|(e,grid, transform, health)| {
+            let selection = ai_units.iter_mut().find(|(e, grid, transform, health)| {
                 let dist = std::cmp::max(
                     i32::abs(grid.x - active_grid.x),
                     i32::abs(grid.y - active_grid.y),
@@ -272,9 +301,9 @@ fn select_target(
                         .distance(Vec2::new(transform.translation.x, transform.translation.y))
                         <= min_dist
             });
-            if let Some((e,_g, _t, mut target_health)) = selection {
+            if let Some((e, _g, _t, mut target_health)) = selection {
                 target_health.value -= active_attack.dmg;
-                if target_health.value<=0{
+                if target_health.value <= 0 {
                     commands.entity(e).despawn_recursive();
                 }
                 phase.set(TurnPhase::SelectAttacker).unwrap();

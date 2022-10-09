@@ -70,7 +70,7 @@ fn spawn_unit(
 ) -> Entity {
     commands
         .spawn_bundle(SpriteBundle {
-            texture: asset_server.load("sprites/chess_pawn.png"),
+            texture: asset_server.load("sprites/skull.png"),
             transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
             sprite: Sprite {
                 color: Color::Rgba {
