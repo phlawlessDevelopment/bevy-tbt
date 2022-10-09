@@ -66,7 +66,7 @@ fn spawn_unit(
     x: f32,
     y: f32,
     i: i32,
-    grid:(i32,i32),
+    grid: (i32, i32),
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     grid_config: &Res<GridConfig>,
@@ -230,7 +230,7 @@ fn select_move(
 fn select_attacker(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform), With<Player>>,
+    entities: Query<(Entity, &mut Transform, &Player)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -240,11 +240,12 @@ fn select_attacker(
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        let selection = entities.into_iter().find(|(_e, transform)| {
-            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                <= min_dist
+        let selection = entities.into_iter().find(|(_e, transform, p)| {
+            !p.has_acted
+                && mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                    <= min_dist
         });
-        if let Some((e, _transform)) = selection {
+        if let Some((e, _transform, player)) = selection {
             active.value = e.id();
             phase.set(TurnPhase::SelectTarget).unwrap();
             mouse_input.reset(MouseButton::Left);
@@ -254,7 +255,7 @@ fn select_attacker(
 fn select_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform), With<Player>>,
+    entities: Query<(Entity, &mut Transform, &Player)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -264,11 +265,12 @@ fn select_unit(
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        let selection = entities.into_iter().find(|(_e, transform)| {
-            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                <= min_dist
+        let selection = entities.into_iter().find(|(_e, transform, p)| {
+            !p.has_acted
+                && mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                    <= min_dist
         });
-        if let Some((e, _transform)) = selection {
+        if let Some((e, _transform, _p)) = selection {
             active.value = e.id();
             phase.set(TurnPhase::SelectMove).unwrap();
             mouse_input.reset(MouseButton::Left);
