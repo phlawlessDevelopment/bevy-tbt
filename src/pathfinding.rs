@@ -3,8 +3,7 @@ use priority_queue::PriorityQueue;
 
 use crate::grid::{BlockedTiles, GridPosition, SelectedPath, SelectedTile};
 use crate::states::TurnPhase;
-use crate::turns::ActiveUnit;
-use crate::units::Unit;
+use crate::units::{Unit,ActiveUnit};
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
@@ -53,8 +52,8 @@ pub fn calculate_a_star_path(
         }
 
         for (x, y) in adjacents(current) {
-            if let Some(is_blocked) = blocked.0.get(&(x, y)){
-                if !*is_blocked {
+            if let Some(is_blocked) = blocked.0.get(&(x, y)) {
+                if !*is_blocked || (x == from.0 && y == from.1) {
                     let new_cost = current_costs[&current] + EDGE_COST;
                     if !current_costs.contains_key(&(x, y)) || new_cost < current_costs[&(x, y)] {
                         current_costs.insert((x, y), new_cost);
@@ -63,11 +62,9 @@ pub fn calculate_a_star_path(
                         closed_set.insert((x, y), Some(current));
                     }
                 }
-            }
-            else{
+            } else {
                 continue;
             }
-
         }
     }
     return a_star_path;

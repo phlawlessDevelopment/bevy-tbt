@@ -2,8 +2,7 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::turns::ActiveUnit;
-use crate::units::{Attack, Health, Movement, Unit};
+use crate::units::{Attack, Health, Movement, Unit,ActiveUnit};
 use bevy::prelude::*;
 
 pub struct AiUnitsPlugin;
@@ -121,12 +120,13 @@ fn make_units(
 fn select_move(
     active: Res<ActiveUnit>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
-    movements: Query<(Entity, &Movement), With<Ai>>,
+    movements: Query<(Entity, &Movement, &Attack, &Transform), With<Ai>>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
-    player_grids_q: Query<&GridPosition, With<Player>>,
+    player_grids_q: Query<(&GridPosition, &Transform), With<Player>>,
     blocked: Res<BlockedTiles>,
+    grid_config: Res<GridConfig>,
 ) {
     let active = active.as_ref();
 
@@ -134,8 +134,9 @@ fn select_move(
         .into_iter()
         .find(|(e, _g)| e.id() == active.value)
     {
-        if let Some((_e, active_movement)) =
-            movements.into_iter().find(|(e, _m)| e.id() == active.value)
+        if let Some((_e, active_movement, active_attack, active_transform)) = movements
+            .into_iter()
+            .find(|(e, _m, _a, _t)| e.id() == active.value)
         {
             let mut reachable: Vec<(&Tile, &GridPosition, &Sprite)> = tiles
                 .iter()
@@ -150,39 +151,50 @@ fn select_move(
                         && !tile.blocked
                 })
                 .collect();
-            let mut player_grids: Vec<&GridPosition> = player_grids_q.iter().collect();
-            player_grids.sort_by(|a, b| {
-                calculate_a_star_path((a.x, a.y), (active_grid.x, active_grid.y), &blocked)
+            let mut player_grids: Vec<(&GridPosition, &Transform)> =
+                player_grids_q.iter().collect();
+            player_grids.sort_by(|(g_a, t_a), (g_b, t_b)| {
+                calculate_a_star_path((g_a.x, g_a.y), (active_grid.x, active_grid.y), &blocked)
                     .len()
                     .cmp(
                         &calculate_a_star_path(
-                            (b.x, b.y),
+                            (g_b.x, g_b.y),
                             (active_grid.x, active_grid.y),
                             &blocked,
                         )
                         .len(),
                     )
             });
-            let closest_player_grid = player_grids[0];
-            reachable.sort_by(|a, b| {
-                calculate_a_star_path(
-                    (closest_player_grid.x, closest_player_grid.y),
-                    (a.1.x, a.1.y),
-                    &blocked,
-                )
-                .len()
-                .cmp(
-                    &calculate_a_star_path(
+
+            let (closest_player_grid, closest_player_transform) = player_grids[0];
+            let dist = closest_player_transform
+                .translation
+                .distance(active_transform.translation);
+            if dist <= active_attack.range as f32 * grid_config.tile_size {
+                selected_tile.x = active_grid.x;
+                selected_tile.y = active_grid.y;
+            } else {
+                reachable.sort_by(|a, b| {
+                    calculate_a_star_path(
                         (closest_player_grid.x, closest_player_grid.y),
-                        (b.1.x, b.1.y),
+                        (a.1.x, a.1.y),
                         &blocked,
                     )
-                    .len(),
-                )
-            });
+                    .len()
+                    .cmp(
+                        &calculate_a_star_path(
+                            (closest_player_grid.x, closest_player_grid.y),
+                            (b.1.x, b.1.y),
+                            &blocked,
+                        )
+                        .len(),
+                    )
+                });
 
-            selected_tile.x = reachable[0].1.x;
-            selected_tile.y = reachable[0].1.y;
+                selected_tile.x = reachable[0].1.x;
+                selected_tile.y = reachable[0].1.y;
+            }
+
             selected_tile.set_changed();
             phase.set(TurnPhase::AIDoMove).unwrap();
         }
@@ -273,10 +285,9 @@ fn select_target(
     active: Res<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
-    if let Some((active, mut active_ai, active_grid, active_attack)) =
-        ai_units.iter_mut().find(|(entity, unit, _grid, _attack)| {
-            entity.id() == active.value
-        })
+    if let Some((active, mut active_ai, active_grid, active_attack)) = ai_units
+        .iter_mut()
+        .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
     {
         let selection = player_units.iter_mut().find(|(grid, transform, health)| {
             let dist = std::cmp::max(
@@ -300,16 +311,6 @@ fn select_target(
                 active_ai.has_acted = true;
             }
         }
-        // if let Some((_g, _t, mut target_health)) = selection {
-        //     target_health.value -= active_attack.dmg;
-        //     println!(
-        //         "dmg {} , remaining {}",
-        //         active_attack.dmg, target_health.value
-        //     );
-        //     phase.set(TurnPhase::AISelectAttacker).unwrap();
-        //     active_ai.has_acted = true;
-        // } else {
-        // }
     }
 }
 fn clear_active_unit(mut active: ResMut<ActiveUnit>) {

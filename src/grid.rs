@@ -2,8 +2,7 @@ use crate::{
     pathfinding::calculate_a_star_path,
     player_units::Player,
     states::TurnPhase,
-    turns::ActiveUnit,
-    units::{Attack, Health, Movement, Unit},
+    units::{Attack, Health, Movement, Unit,ActiveUnit},
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
@@ -119,12 +118,7 @@ fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
         sprite.color.set_a(1.0);
     }
 }
-fn skip_phase(mut phase: ResMut<State<TurnPhase>>, mut key_input: ResMut<Input<KeyCode>>) {
-    if key_input.just_pressed(KeyCode::Space) {
-        phase.set(TurnPhase::AISelectUnit).unwrap();
-        key_input.clear();
-    }
-}
+
 fn spawn_tile(
     x: f32,
     y: f32,
@@ -221,7 +215,6 @@ impl Plugin for GridPlugin {
                 SystemSet::on_exit(TurnPhase::SelectTarget)
                     .with_system(clear_highlighted_tiles),
             )
-            .add_system(skip_phase)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::DoMove).with_system(clear_highlighted_tiles),
             )

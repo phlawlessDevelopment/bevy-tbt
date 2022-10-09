@@ -1,6 +1,7 @@
 use ai_units::AiUnitsPlugin;
 use bevy::prelude::*;
 use gui::GuiPlugin;
+use units::UnitsPlugin;
 
 mod camera;
 mod grid;
@@ -20,6 +21,7 @@ use crate::{
     states::{GameState, TurnPhase},
     player_units::PlayerUnitsPlugin,
     debug::DebugPlugin,
+    states::StatePlugin,
 };
 
 // fn print_state(phase: Res<State<TurnPhase>>,){
@@ -29,6 +31,8 @@ use crate::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(StatePlugin)
+        .add_plugin(UnitsPlugin)
         .add_plugin(GuiPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(CameraPlugin)

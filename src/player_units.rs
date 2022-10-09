@@ -3,8 +3,7 @@ use crate::camera::MainCamera;
 use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
-use crate::turns::ActiveUnit;
-use crate::units::{Attack, Health, Movement, Unit};
+use crate::units::{Attack, Health, Movement, Unit, ActiveUnit};
 use bevy::render::camera::RenderTarget;
 use bevy::{prelude::*, transform};
 
@@ -151,10 +150,10 @@ fn get_mouse_position(
 fn select_move(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     tiles: Query<(&Tile, &GridPosition, &mut Transform)>,
     player_unit_grids: Query<(Entity, &GridPosition), With<Player>>,
     movements: Query<(Entity, &Movement)>,
-    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: Res<ActiveUnit>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
