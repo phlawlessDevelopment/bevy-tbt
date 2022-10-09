@@ -3,7 +3,7 @@ use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
 use crate::turns::ActiveUnit;
-use crate::units::{Health, Movement, Unit};
+use crate::units::{Attack, Health, Movement, Unit};
 use bevy::prelude::*;
 
 pub struct AiUnitsPlugin;
@@ -39,8 +39,7 @@ fn move_active_unit(
             ) - transform.translation;
 
             if direction.length() > 1.0 {
-                transform.translation +=
-                    direction.normalize() * time.delta_seconds() * 100.0;
+                transform.translation += direction.normalize() * time.delta_seconds() * 100.0;
             } else {
                 transform.translation = Vec3::new(
                     next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
@@ -61,6 +60,7 @@ fn move_active_unit(
         }
     }
 }
+
 fn spawn_unit(
     x: f32,
     y: f32,
@@ -87,6 +87,7 @@ fn spawn_unit(
         .insert(Unit)
         .insert(Ai { has_acted: false })
         .insert(Name::new(format!("Ai Unit {}", i)))
+        .insert(Attack { dmg: 1, range: 1 })
         .insert(Movement { distance: 4 })
         .insert(Health { max: 5, value: 5 })
         .insert(GridPosition {
@@ -208,7 +209,46 @@ fn select_unit(
     }
 }
 
-fn check_enemy_has_acted(
+fn select_attacker(
+    entities: Query<(Entity, &Ai)>,
+    mut active: ResMut<ActiveUnit>,
+    mut phase: ResMut<State<TurnPhase>>,
+    mut all_acted: ResMut<AllUnitsActed>,
+) {
+    if !all_acted.value {
+        for (entity, unit) in entities.into_iter() {
+            if unit.has_acted == false {
+                active.value = entity.id();
+                active.set_changed();
+                phase.set(TurnPhase::AISelectTarget).unwrap();
+                break;
+            }
+        }
+    } else {
+        all_acted.value = false;
+    }
+}
+
+fn check_enemy_has_moved(
+    mut ai_units: Query<&mut Ai>,
+    mut phase: ResMut<State<TurnPhase>>,
+    mut all_acted: ResMut<AllUnitsActed>,
+) {
+    let mut still_to_act = false;
+    for unit in ai_units.iter() {
+        if !unit.has_acted {
+            still_to_act = true;
+        }
+    }
+    if !still_to_act {
+        for mut unit in ai_units.iter_mut() {
+            unit.has_acted = false;
+        }
+        all_acted.value = true;
+        phase.set(TurnPhase::AISelectAttacker).unwrap();
+    }
+}
+fn check_enemy_has_attacked(
     mut ai_units: Query<&mut Ai>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
@@ -227,7 +267,51 @@ fn check_enemy_has_acted(
         phase.set(TurnPhase::SelectUnit).unwrap();
     }
 }
-
+fn select_target(
+    mut ai_units: Query<(Entity, &mut Ai, &GridPosition, &Attack)>,
+    mut player_units: Query<(&GridPosition, &Transform, &mut Health), With<Player>>,
+    active: Res<ActiveUnit>,
+    mut phase: ResMut<State<TurnPhase>>,
+) {
+    if let Some((active, mut active_ai, active_grid, active_attack)) =
+        ai_units.iter_mut().find(|(entity, unit, _grid, _attack)| {
+            entity.id() == active.value
+        })
+    {
+        let selection = player_units.iter_mut().find(|(grid, transform, health)| {
+            let dist = std::cmp::max(
+                i32::abs(grid.x - active_grid.x),
+                i32::abs(grid.y - active_grid.y),
+            );
+            dist > 0 && dist <= active_attack.range
+        });
+        match selection {
+            Some((_g, _t, mut target_health)) => {
+                target_health.value -= active_attack.dmg;
+                println!(
+                    "dmg {} , remaining {}",
+                    active_attack.dmg, target_health.value
+                );
+                phase.set(TurnPhase::AISelectAttacker).unwrap();
+                active_ai.has_acted = true;
+            }
+            None => {
+                phase.set(TurnPhase::AISelectAttacker).unwrap();
+                active_ai.has_acted = true;
+            }
+        }
+        // if let Some((_g, _t, mut target_health)) = selection {
+        //     target_health.value -= active_attack.dmg;
+        //     println!(
+        //         "dmg {} , remaining {}",
+        //         active_attack.dmg, target_health.value
+        //     );
+        //     phase.set(TurnPhase::AISelectAttacker).unwrap();
+        //     active_ai.has_acted = true;
+        // } else {
+        // }
+    }
+}
 fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
     active.value = 0;
 }
@@ -240,8 +324,16 @@ impl Plugin for AiUnitsPlugin {
             .add_system_set(SystemSet::on_update(TurnPhase::AISelectMove).with_system(select_move))
             .add_system_set(
                 SystemSet::on_update(TurnPhase::AISelectUnit)
-                    .with_system(check_enemy_has_acted)
-                    .with_system(select_unit.after(check_enemy_has_acted)),
+                    .with_system(check_enemy_has_moved)
+                    .with_system(select_unit.after(check_enemy_has_moved)),
+            )
+            .add_system_set(
+                SystemSet::on_update(TurnPhase::AISelectAttacker)
+                    .with_system(check_enemy_has_attacked)
+                    .with_system(select_attacker.after(check_enemy_has_attacked)),
+            )
+            .add_system_set(
+                SystemSet::on_update(TurnPhase::AISelectTarget).with_system(select_target),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::AISelectUnit).with_system(clear_active_unit),

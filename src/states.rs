@@ -1,3 +1,5 @@
+use bevy::reflect::Reflect;
+
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub enum GameState {
     Menu,
@@ -6,7 +8,7 @@ pub enum GameState {
     GameOver,
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect)]
 pub enum TurnPhase {
     None,
     SelectUnit,
@@ -15,9 +17,11 @@ pub enum TurnPhase {
     SelectAttacker,
     SelectTarget,
     DoAttack,
-
+    
     AISelectUnit,
     AISelectMove,
     AIDoMove,
-    AIAttack,
+    AISelectAttacker,
+    AISelectTarget,
+    AIDoAttack,
 }

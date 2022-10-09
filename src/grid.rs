@@ -72,7 +72,7 @@ fn highlight_attackable_tiles(
                 {
                     sprite.color.set_b(0.0);
                     sprite.color.set_g(0.0);
-                    sprite.color.set_a(0.6);
+                    sprite.color.set_a(0.2);
                 }
             }
         }
@@ -105,7 +105,7 @@ fn highlight_reachable_tiles(
             }) {
                 sprite.color.set_r(0.0);
                 sprite.color.set_b(0.0);
-                sprite.color.set_a(0.3);
+                sprite.color.set_a(0.05);
             }
         }
     }

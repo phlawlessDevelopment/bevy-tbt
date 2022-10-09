@@ -1,5 +1,6 @@
 use ai_units::AiUnitsPlugin;
 use bevy::prelude::*;
+use gui::GuiPlugin;
 
 mod camera;
 mod grid;
@@ -10,6 +11,7 @@ mod player_units;
 mod ai_units;
 mod units;
 mod debug;
+mod gui;
 
 use crate::{
     camera::CameraPlugin,
@@ -27,6 +29,7 @@ use crate::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(GuiPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(CameraPlugin)
         .add_plugin(GridPlugin)
