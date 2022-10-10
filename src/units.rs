@@ -5,7 +5,10 @@ use crate::camera::MainCamera;
 pub struct UnitsPlugin;
 
 #[derive(Component, Debug)]
-pub struct Unit;
+pub struct Unit
+{
+    pub has_acted:bool,
+}
 
 #[derive(Component, Debug)]
 pub struct Movement {

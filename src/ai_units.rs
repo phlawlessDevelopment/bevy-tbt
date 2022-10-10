@@ -8,9 +8,7 @@ use bevy::prelude::*;
 pub struct AiUnitsPlugin;
 
 #[derive(Component, Debug)]
-pub struct Ai {
-    pub has_acted: bool,
-}
+pub struct Ai;
 
 fn setup_active(mut commands: Commands) {
     commands.insert_resource(ActiveUnit { ..default() });
@@ -21,7 +19,7 @@ fn move_active_unit(
     active: ResMut<ActiveUnit>,
     grid_config: Res<GridConfig>,
     mut selected_path: ResMut<SelectedPath>,
-    mut ai_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Ai)>,
+    mut ai_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Unit), With<Ai>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let active = active.as_ref();
@@ -64,7 +62,7 @@ fn spawn_unit(
     x: f32,
     y: f32,
     i: i32,
-    grid:(i32,i32),
+    grid: (i32, i32),
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     grid_config: &Res<GridConfig>,
@@ -89,8 +87,8 @@ fn spawn_unit(
             },
             ..default()
         })
-        .insert(Unit)
-        .insert(Ai { has_acted: false })
+        .insert(Unit { has_acted: false })
+        .insert(Ai)
         .insert(Name::new(format!("Ai Unit {}", i)))
         .insert(Attack {
             dmg: dmg,
@@ -231,7 +229,7 @@ fn select_move(
 }
 
 fn select_unit(
-    entities: Query<(Entity, &Ai)>,
+    entities: Query<(Entity, &Unit), With<Ai>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
@@ -251,7 +249,7 @@ fn select_unit(
 }
 
 fn select_attacker(
-    entities: Query<(Entity, &Ai)>,
+    entities: Query<(Entity, &Unit), With<Ai>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
@@ -271,7 +269,7 @@ fn select_attacker(
 }
 
 fn check_enemy_has_moved(
-    mut ai_units: Query<&mut Ai>,
+    mut ai_units: Query<&mut Unit, With<Ai>>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
 ) {
@@ -290,7 +288,7 @@ fn check_enemy_has_moved(
     }
 }
 fn check_enemy_has_attacked(
-    mut ai_units: Query<&mut Ai>,
+    mut ai_units: Query<&mut Unit, With<Ai>>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
 ) {
@@ -309,7 +307,7 @@ fn check_enemy_has_attacked(
     }
 }
 fn select_target(
-    mut ai_units: Query<(Entity, &mut Ai, &GridPosition, &Attack)>,
+    mut ai_units: Query<(Entity, &mut Unit, &GridPosition, &Attack), With<Ai>>,
     mut player_units: Query<(Entity, &GridPosition, &Transform, &mut Health), With<Player>>,
     active: Res<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,

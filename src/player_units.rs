@@ -10,9 +10,7 @@ use bevy::{prelude::*, transform};
 pub struct PlayerUnitsPlugin;
 
 #[derive(Component, Debug)]
-pub struct Player {
-    pub has_acted: bool,
-}
+pub struct Player;
 
 fn setup_active(mut commands: Commands) {
     commands.insert_resource(ActiveUnit { ..default() });
@@ -22,7 +20,7 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Player)>,
+    mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Unit),With<Player>>,
     mut phase: ResMut<State<TurnPhase>>,
     grid_config: Res<GridConfig>,
 ) {
@@ -91,8 +89,8 @@ fn spawn_unit(
             },
             ..default()
         })
-        .insert(Unit)
-        .insert(Player { has_acted: false })
+        .insert(Unit { has_acted: false })
+        .insert(Player)
         .insert(Name::new(format!("Player Unit {}", i)))
         .insert(Movement { distance: movement })
         .insert(Health {
@@ -230,7 +228,7 @@ fn select_move(
 fn select_attacker(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Player)>,
+    entities: Query<(Entity, &mut Transform, &Unit)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -255,7 +253,7 @@ fn select_attacker(
 fn select_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Player)>,
+    entities: Query<(Entity, &mut Transform, &Unit)>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -281,7 +279,7 @@ fn select_target(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     mut ai_units: Query<(Entity, &GridPosition, &Transform, &mut Health), With<Ai>>,
-    mut player_units: Query<(Entity, &mut Player, &GridPosition, &Attack), With<Player>>,
+    mut player_units: Query<(Entity, &mut Unit, &GridPosition, &Attack), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -319,7 +317,7 @@ fn select_target(
     }
 }
 fn check_player_has_moved(
-    mut player_units: Query<&mut Player>,
+    mut player_units: Query<&mut Unit, With<Player>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let mut still_to_act = false;
@@ -337,7 +335,7 @@ fn check_player_has_moved(
 }
 
 fn check_player_has_attacked(
-    mut player_units: Query<&mut Player>,
+    mut player_units: Query<&mut Unit, With<Player>>,
     mut phase: ResMut<State<TurnPhase>>,
 ) {
     let mut still_to_act = false;

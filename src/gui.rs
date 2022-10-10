@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy_egui::{egui, EguiContext, EguiPlugin};
 
 use crate::{
     states::TurnPhase,
-    units::{Health, Movement, SelectedUnit},
+    units::{Health, Movement, SelectedUnit, Unit},
 };
 
 pub struct GuiPlugin;
@@ -13,26 +12,26 @@ struct StateText;
 
 #[derive(Default)]
 struct SelectedUnitGUI {
-    health: u32,
-    health_max: u32,
-    movement: u32,
-    has_moved: u32,
-    has_attacked: u32,
+    parent: u32,
+    health: String,
+    health_max: String,
+    movement: String,
+    can_act: String,
 }
 
 impl Plugin for GuiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(EguiPlugin)
-            .add_startup_system(setup)
-            .add_system(current_state)
-            .add_system(selected_unit);
+        app.init_resource::<SelectedUnitGUI>()
+        .add_startup_system(pre_setup)
+        .add_startup_system(setup.after(pre_setup))
+        .add_startup_system(get_labels.after(setup))
+        .add_system(selected_unit);
     }
 }
-fn pre_setup(mut commands: Commands){
+fn pre_setup(mut commands: Commands) {
     commands.insert_resource(SelectedUnitGUI { ..default() });
 }
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui:ResMut<SelectedUnitGUI>) {
-
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut<SelectedUnitGUI>) {
     // root node
     commands
         .spawn_bundle(NodeBundle {
@@ -58,7 +57,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui:ResMut<
                 })
                 .with_children(|parent| {
                     // left vertical fill (content)
-                    parent
+                    gui.parent = parent
                         .spawn_bundle(NodeBundle {
                             style: Style {
                                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
@@ -85,106 +84,115 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui:ResMut<
                                     ..default()
                                 }),
                             );
-                            gui.health = parent
-                                .spawn_bundle(
-                                    TextBundle::from_section(
-                                        "HP",
-                                        TextStyle {
-                                            font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                            font_size: 30.0,
-                                            color: Color::WHITE,
-                                        },
-                                    )
-                                    .with_style(Style {
-                                        margin: UiRect::all(Val::Px(5.0)),
-                                        ..default()
-                                    }),
-                                ).id();
-                            gui.health_max = parent
-                                .spawn_bundle(
-                                    TextBundle::from_section(
-                                        "Max HP",
-                                        TextStyle {
-                                            font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                            font_size: 30.0,
-                                            color: Color::WHITE,
-                                        },
-                                    )
-                                    .with_style(Style {
-                                        margin: UiRect::all(Val::Px(5.0)),
-                                        ..default()
-                                    }),
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "HP",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 30.0,
+                                        color: Color::WHITE,
+                                    },
                                 )
-                                .id();
-                            gui.movement = parent
-                                .spawn_bundle(
-                                    TextBundle::from_section(
-                                        "Movement",
-                                        TextStyle {
-                                            font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                            font_size: 30.0,
-                                            color: Color::WHITE,
-                                        },
-                                    )
-                                    .with_style(Style {
-                                        margin: UiRect::all(Val::Px(5.0)),
-                                        ..default()
-                                    }),
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "Max HP",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 30.0,
+                                        color: Color::WHITE,
+                                    },
                                 )
-                                .id();
-                            gui.can_move = parent
-                                .spawn_bundle(
-                                    TextBundle::from_section(
-                                        "Can Move",
-                                        TextStyle {
-                                            font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                            font_size: 30.0,
-                                            color: Color::WHITE,
-                                        },
-                                    )
-                                    .with_style(Style {
-                                        margin: UiRect::all(Val::Px(5.0)),
-                                        ..default()
-                                    }),
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "Movement",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 30.0,
+                                        color: Color::WHITE,
+                                    },
                                 )
-                                .id();
-                            gui.can_attack = parent
-                                .spawn_bundle(
-                                    TextBundle::from_section(
-                                        "Can Attack",
-                                        TextStyle {
-                                            font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                            font_size: 30.0,
-                                            color: Color::WHITE,
-                                        },
-                                    )
-                                    .with_style(Style {
-                                        margin: UiRect::all(Val::Px(5.0)),
-                                        ..default()
-                                    }),
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "Can act",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 30.0,
+                                        color: Color::WHITE,
+                                    },
                                 )
-                                .id();
-                        });
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
+                        })
+                        .id()
+                        .id();
                 });
         });
 }
-fn current_state(phase: Res<State<TurnPhase>>, mut egui_context: ResMut<EguiContext>) {
-    egui::Window::new("State").show(egui_context.ctx_mut(), |ui| {
-        ui.label(format!("{:?}", phase.current()));
-    });
+fn get_labels(mut texts: Query<&mut Text>, mut gui: ResMut<SelectedUnitGUI>) {
+    for text in texts.iter_mut() {
+        match text.sections[0].value.as_str() {
+            "Can act" => gui.can_act = text.sections[0].value.clone(),
+            "HP" => gui.health = text.sections[0].value.clone(),
+            "MAx HP" => gui.health_max = text.sections[0].value.clone(),
+            "Movement" => gui.movement = text.sections[0].value.clone(),
+            _ => {}
+        }
+    }
 }
 fn selected_unit(
+    units: Query<(Entity, &Health, &Movement, &Unit)>,
+    mut texts: Query<&mut Text>,
     selected: Res<SelectedUnit>,
-    units: Query<(Entity, &Health, &Movement)>,
-    mut egui_context: ResMut<EguiContext>,
+    gui: Res<SelectedUnitGUI>,
 ) {
-    egui::Window::new("Selected Unit").show(egui_context.ctx_mut(), |ui| {
-        if let Some((entity, health, movement)) =
-            units.iter().find(|(e, h, m)| e.id() == selected.value)
+    // for (e, text) in texts.iter_mut() {
+    //     println!("{}", text.sections[0].value);
+    // }
+    if let Some((entity, health, movement, unit)) =
+        units.iter().find(|(e, h, m, u)| e.id() == selected.value)
+    {
+        if let Some(mut text) = texts
+            .iter_mut()
+            .find(|t| gui.can_act == t.sections[0].value.as_str())
         {
-            ui.label(format!("Health {}", health.value));
-            ui.label(format!("Max Health {}", health.max));
-            ui.label(format!("Movement {}", movement.distance));
+            text.sections[0].value =
+                format!("{}", if !unit.has_acted { "Can act" } else { "Acted" });
         }
-    });
+        if let Some(mut text) = texts
+            .iter_mut()
+            .find(|t| gui.health == t.sections[0].value.as_str())
+        {
+            text.sections[0].value = format!("HP {}", health.value);
+        }
+        if let Some(mut text) = texts
+            .iter_mut()
+            .find(|t| gui.health_max == t.sections[0].value.as_str())
+        {
+            text.sections[0].value = format!("Max HP {}", health.max);
+        }
+        if let Some(mut text) = texts
+            .iter_mut()
+            .find(|t| gui.movement == t.sections[0].value.as_str())
+        {
+            text.sections[0].value = format!("Movement {}", movement.distance);
+        }
+    }
 }
