@@ -228,7 +228,7 @@ fn select_move(
 fn select_attacker(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Unit)>,
+    entities: Query<(Entity, &mut Transform, &Unit),With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -253,7 +253,7 @@ fn select_attacker(
 fn select_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Unit)>,
+    entities: Query<(Entity, &mut Transform, &Unit),With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,

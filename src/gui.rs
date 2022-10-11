@@ -10,22 +10,24 @@ pub struct GuiPlugin;
 #[derive(Component)]
 struct StateText;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct SelectedUnitGUI {
     parent: u32,
-    health: String,
-    health_max: String,
-    movement: String,
-    can_act: String,
+    health: u32,
+    health_max: u32,
+    movement: u32,
+    can_act: u32,
+    turn_phase: u32,
 }
 
 impl Plugin for GuiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedUnitGUI>()
-        .add_startup_system(pre_setup)
-        .add_startup_system(setup.after(pre_setup))
-        .add_startup_system(get_labels.after(setup))
-        .add_system(selected_unit);
+            .add_startup_system_to_stage(StartupStage::PreStartup, pre_setup)
+            .add_startup_system_to_stage(StartupStage::PreStartup, setup.after(pre_setup))
+            .add_startup_system(get_labels)
+            .add_system(current_state)
+            .add_system(selected_unit);
     }
 }
 fn pre_setup(mut commands: Commands) {
@@ -75,7 +77,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     "Selected Unit",
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 30.0,
+                                        font_size: 24.0,
                                         color: Color::WHITE,
                                     },
                                 )
@@ -89,7 +91,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     "HP",
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 30.0,
+                                        font_size: 24.0,
                                         color: Color::WHITE,
                                     },
                                 )
@@ -103,7 +105,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     "Max HP",
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 30.0,
+                                        font_size: 24.0,
                                         color: Color::WHITE,
                                     },
                                 )
@@ -117,7 +119,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     "Movement",
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 30.0,
+                                        font_size: 24.0,
                                         color: Color::WHITE,
                                     },
                                 )
@@ -131,7 +133,35 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     "Can act",
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 30.0,
+                                        font_size: 24.0,
+                                        color: Color::WHITE,
+                                    },
+                                )
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "[============]",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 24.0,
+                                        color: Color::WHITE,
+                                    },
+                                )
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "Turn Phase",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 24.0,
                                         color: Color::WHITE,
                                     },
                                 )
@@ -146,20 +176,21 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                 });
         });
 }
-fn get_labels(mut texts: Query<&mut Text>, mut gui: ResMut<SelectedUnitGUI>) {
-    for text in texts.iter_mut() {
+fn get_labels(mut texts: Query<(Entity, &mut Text)>, mut gui: ResMut<SelectedUnitGUI>) {
+    for (entity, text) in texts.iter_mut() {
         match text.sections[0].value.as_str() {
-            "Can act" => gui.can_act = text.sections[0].value.clone(),
-            "HP" => gui.health = text.sections[0].value.clone(),
-            "MAx HP" => gui.health_max = text.sections[0].value.clone(),
-            "Movement" => gui.movement = text.sections[0].value.clone(),
+            "Can act" => gui.can_act = entity.id(),
+            "HP" => gui.health = entity.id(),
+            "Max HP" => gui.health_max = entity.id(),
+            "Movement" => gui.movement = entity.id(),
+            "Turn Phase" => gui.turn_phase = entity.id(),
             _ => {}
         }
     }
 }
 fn selected_unit(
     units: Query<(Entity, &Health, &Movement, &Unit)>,
-    mut texts: Query<&mut Text>,
+    mut texts: Query<(Entity, &mut Text)>,
     selected: Res<SelectedUnit>,
     gui: Res<SelectedUnitGUI>,
 ) {
@@ -169,30 +200,27 @@ fn selected_unit(
     if let Some((entity, health, movement, unit)) =
         units.iter().find(|(e, h, m, u)| e.id() == selected.value)
     {
-        if let Some(mut text) = texts
-            .iter_mut()
-            .find(|t| gui.can_act == t.sections[0].value.as_str())
-        {
+        if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.can_act == e.id()) {
             text.sections[0].value =
                 format!("{}", if !unit.has_acted { "Can act" } else { "Acted" });
         }
-        if let Some(mut text) = texts
-            .iter_mut()
-            .find(|t| gui.health == t.sections[0].value.as_str())
-        {
-            text.sections[0].value = format!("HP {}", health.value);
+        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health == e.id()) {
+            text.sections[0].value = format!("HP: {}", health.value);
         }
-        if let Some(mut text) = texts
-            .iter_mut()
-            .find(|t| gui.health_max == t.sections[0].value.as_str())
-        {
-            text.sections[0].value = format!("Max HP {}", health.max);
+        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health_max == e.id()) {
+            text.sections[0].value = format!("Max HP: {}", health.max);
         }
-        if let Some(mut text) = texts
-            .iter_mut()
-            .find(|t| gui.movement == t.sections[0].value.as_str())
-        {
-            text.sections[0].value = format!("Movement {}", movement.distance);
+        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.movement == e.id()) {
+            text.sections[0].value = format!("Movement: {}", movement.distance);
         }
+    }
+}
+fn current_state(
+    phase: Res<State<TurnPhase>>,
+    mut texts: Query<(Entity, &mut Text)>,
+    gui: Res<SelectedUnitGUI>,
+) {
+    if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.turn_phase == e.id()) {
+        text.sections[0].value = format!("{:?}", phase.current());
     }
 }
