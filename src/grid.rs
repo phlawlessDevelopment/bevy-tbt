@@ -1,8 +1,9 @@
 use crate::{
+    ai_units::Ai,
     pathfinding::calculate_a_star_path,
     player_units::Player,
     states::TurnPhase,
-    units::{Attack, Health, Movement, Unit,ActiveUnit},
+    units::{ActiveUnit, Attack, Health, Movement, SelectedUnit, Unit},
 };
 use bevy::prelude::*;
 use bevy_inspector_egui::Inspectable;
@@ -47,6 +48,40 @@ pub struct SelectedTile {
     pub y: i32,
 }
 
+fn highlight_selected_unit(
+    mut tiles: Query<(&Tile, &GridPosition, &mut Sprite)>,
+    ai_units: Query<(Entity, &GridPosition), With<Ai>>,
+    player_units: Query<(Entity, &GridPosition), With<Player>>,
+    selected: Res<SelectedUnit>,
+) {
+    if let Some((_e, grid)) = player_units
+        .into_iter()
+        .find(|(e, _g)| e.id() == selected.value)
+    {
+        if let Some((tile, grid, mut sprite)) = tiles
+            .iter_mut()
+            .find(|(t, g, s)| g.x == grid.x && g.y == grid.y)
+        {
+            sprite.color.set_r(0.2);
+            sprite.color.set_g(0.2);
+            sprite.color.set_b(0.2);
+            sprite.color.set_a(0.1);
+        }
+    } else if let Some((_e, grid)) = ai_units
+        .into_iter()
+        .find(|(e, _g)| e.id() == selected.value)
+    {
+        if let Some((tile, grid, mut sprite)) = tiles
+            .iter_mut()
+            .find(|(t, g, s)| g.x == grid.x && g.y == grid.y)
+        {
+            sprite.color.set_r(0.2);
+            sprite.color.set_g(0.2);
+            sprite.color.set_b(0.2);
+            sprite.color.set_a(0.1);
+        }
+    }
+}
 fn highlight_attackable_tiles(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     ai_units: Query<(Entity, &GridPosition), (With<Health>, Without<Player>)>,
@@ -212,14 +247,15 @@ impl Plugin for GridPlugin {
                     .with_system(highlight_attackable_tiles.after(clear_highlighted_tiles)),
             )
             .add_system_set(
-                SystemSet::on_exit(TurnPhase::SelectTarget)
-                    .with_system(clear_highlighted_tiles),
+                SystemSet::on_exit(TurnPhase::SelectTarget).with_system(clear_highlighted_tiles),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::DoMove).with_system(clear_highlighted_tiles),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_highlighted_tiles),
-            );
+            )
+            .add_system(highlight_selected_unit);
+            
     }
 }
