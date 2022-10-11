@@ -355,28 +355,50 @@ fn check_player_has_attacked(
 fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
     active.value = 0;
 }
-fn go_back(
+fn handle_keys(
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut key_input: ResMut<Input<KeyCode>>,
+    mut player_units: Query<(Entity, &mut Unit), With<Player>>,
 ) {
     if key_input.just_pressed(KeyCode::Escape) {
         match phase.current() {
-            TurnPhase::None => {}
-            TurnPhase::SelectUnit => {}
             TurnPhase::SelectMove => phase.set(TurnPhase::SelectUnit).unwrap(),
-            TurnPhase::DoMove => {}
-            TurnPhase::SelectAttacker => {}
             TurnPhase::SelectTarget => phase.set(TurnPhase::SelectAttacker).unwrap(),
-            TurnPhase::DoAttack => {}
-            TurnPhase::AISelectUnit => {}
-            TurnPhase::AISelectMove => {}
-            TurnPhase::AIDoMove => {}
-            TurnPhase::AISelectAttacker => {}
-            TurnPhase::AISelectTarget => {}
-            TurnPhase::AIDoAttack => {}
+            _ => {}
         }
         active.value = 0;
+        key_input.clear();
+    }
+    if key_input.just_pressed(KeyCode::Space) {
+        match phase.current() {
+            TurnPhase::None => {}
+            TurnPhase::SelectMove => {
+                if let Some((_entity, mut unit)) = player_units
+                    .iter_mut()
+                    .find(|(e, u)| e.id() == active.value)
+                {
+                    unit.has_acted = true;
+                    active.value = 0;
+                }
+                phase.set(TurnPhase::SelectUnit).unwrap();
+            }
+            TurnPhase::SelectTarget => {
+                if let Some((_entity, mut unit)) = player_units
+                    .iter_mut()
+                    .find(|(e, u)| e.id() == active.value)
+                {
+                    unit.has_acted = true;
+                    active.value = 0;
+                }
+                phase.set(TurnPhase::SelectAttacker).unwrap();
+            }
+            TurnPhase::SelectUnit => phase.set(TurnPhase::SelectAttacker).unwrap(),
+            TurnPhase::DoMove => {}
+            TurnPhase::SelectAttacker => phase.set(TurnPhase::AISelectUnit).unwrap(),
+            _ => {}
+        }
+        key_input.clear();
     }
 }
 
@@ -402,6 +424,6 @@ impl Plugin for PlayerUnitsPlugin {
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
             )
-            .add_system(go_back);
+            .add_system(handle_keys);
     }
 }

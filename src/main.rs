@@ -16,14 +16,12 @@ use crate::{
     gui::GuiPlugin,
     pathfinding::PathfindingPlugin,
     player_units::PlayerUnitsPlugin,
-    states::StatePlugin,
     states::{GameState, TurnPhase},
     units::UnitsPlugin,
 };
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugin(StatePlugin)
         .add_plugin(UnitsPlugin)
         .add_plugin(GuiPlugin)
         .add_plugin(CameraPlugin)

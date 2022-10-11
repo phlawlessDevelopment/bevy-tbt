@@ -26,32 +26,3 @@ pub enum TurnPhase {
     AISelectTarget,
     AIDoAttack,
 }
-pub struct StatePlugin;
-
-impl Plugin for StatePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_system(skip_phase);
-    }
-}
-fn skip_phase(mut phase: ResMut<State<TurnPhase>>, mut key_input: ResMut<Input<KeyCode>>) {
-    if key_input.just_pressed(KeyCode::Space) {
-        match phase.current() {
-            TurnPhase::SelectUnit => {
-                phase.set(TurnPhase::SelectAttacker).unwrap();
-            }
-            TurnPhase::SelectMove => {
-                phase.set(TurnPhase::SelectAttacker).unwrap();
-            }
-            TurnPhase::SelectAttacker => {
-                phase.set(TurnPhase::AISelectUnit).unwrap();
-            }
-            TurnPhase::SelectTarget => {
-                phase.set(TurnPhase::AISelectUnit).unwrap();
-            }
-            _ => {
-                phase.set(TurnPhase::AISelectAttacker).unwrap();
-            }
-        }
-        key_input.clear();
-    }
-}
