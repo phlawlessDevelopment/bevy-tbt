@@ -4,8 +4,8 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
 use crate::units::{ActiveUnit, Attack, Health, Movement, Unit};
+use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
-use bevy::{prelude::*, transform};
 
 pub struct PlayerUnitsPlugin;
 
@@ -20,7 +20,7 @@ fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
     active: ResMut<ActiveUnit>,
-    mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Unit),With<Player>>,
+    mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Unit), With<Player>>,
     mut phase: ResMut<State<TurnPhase>>,
     grid_config: Res<GridConfig>,
 ) {
@@ -228,7 +228,7 @@ fn select_move(
 fn select_attacker(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Unit),With<Player>>,
+    entities: Query<(Entity, &mut Transform, &Unit), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -253,7 +253,7 @@ fn select_attacker(
 fn select_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Unit),With<Player>>,
+    entities: Query<(Entity, &mut Transform, &Unit), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -309,9 +309,9 @@ fn select_target(
                 if target_health.value <= 0 {
                     commands.entity(e).despawn_recursive();
                 }
+                active_player.has_acted = true;
                 phase.set(TurnPhase::SelectAttacker).unwrap();
                 mouse_input.clear();
-                active_player.has_acted = true;
             }
         }
     }
@@ -355,6 +355,30 @@ fn check_player_has_attacked(
 fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
     active.value = 0;
 }
+fn go_back(
+    mut active: ResMut<ActiveUnit>,
+    mut phase: ResMut<State<TurnPhase>>,
+    mut key_input: ResMut<Input<KeyCode>>,
+) {
+    if key_input.just_pressed(KeyCode::Escape) {
+        match phase.current() {
+            TurnPhase::None => {}
+            TurnPhase::SelectUnit => {}
+            TurnPhase::SelectMove => phase.set(TurnPhase::SelectUnit).unwrap(),
+            TurnPhase::DoMove => {}
+            TurnPhase::SelectAttacker => {}
+            TurnPhase::SelectTarget => phase.set(TurnPhase::SelectAttacker).unwrap(),
+            TurnPhase::DoAttack => {}
+            TurnPhase::AISelectUnit => {}
+            TurnPhase::AISelectMove => {}
+            TurnPhase::AIDoMove => {}
+            TurnPhase::AISelectAttacker => {}
+            TurnPhase::AISelectTarget => {}
+            TurnPhase::AIDoAttack => {}
+        }
+        active.value = 0;
+    }
+}
 
 impl Plugin for PlayerUnitsPlugin {
     fn build(&self, app: &mut App) {
@@ -377,6 +401,7 @@ impl Plugin for PlayerUnitsPlugin {
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
-            );
+            )
+            .add_system(go_back);
     }
 }
