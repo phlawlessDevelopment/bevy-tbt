@@ -75,19 +75,58 @@ fn spawn_unit(
     range: i32,
 ) -> Entity {
     commands
-        .spawn_bundle(SpriteBundle {
-            texture: asset_server.load(sprite_path),
-            transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
-            sprite: Sprite {
-                color: Color::Rgba {
-                    red: 0.0,
-                    green: 1.0,
-                    blue: 0.0,
-                    alpha: 1.0,
+        .spawn()
+        .insert_bundle(SpatialBundle {
+            transform: Transform::from_translation(Vec3::new(x, y, 1.0)),
+            ..default()
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(SpriteBundle {
+                texture: asset_server.load("sprites/tag_1.png"),
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+                sprite: Sprite {
+                    color: Color::Rgba {
+                        red: 0.75,
+                        green: 0.75,
+                        blue: 0.0,
+                        alpha: 1.0,
+                    },
+                    ..default()
                 },
                 ..default()
-            },
-            ..default()
+            });
+            parent.spawn_bundle(SpriteBundle {
+                texture: asset_server.load("sprites/tag_shield_1.png"),
+                transform: Transform::from_translation(Vec3::new(
+                    -grid_config.tile_size / 2.0,
+                    grid_config.tile_size / 2.0,
+                    1.0,
+                )),
+                sprite: Sprite {
+                    color: Color::Rgba {
+                        red: 0.0,
+                        green: 0.0,
+                        blue: 0.75,
+                        alpha: 1.0,
+                    },
+                    ..default()
+                },
+                ..default()
+            });
+            parent.spawn_bundle(SpriteBundle {
+                texture: asset_server.load(sprite_path),
+                transform: Transform::default().with_scale(Vec3::new(0.75, 0.75, 1.0)),
+                sprite: Sprite {
+                    color: Color::Rgba {
+                        red: 0.0,
+                        green: 0.25,
+                        blue: 0.0,
+                        alpha: 1.0,
+                    },
+                    ..default()
+                },
+                ..default()
+            });
         })
         .insert(Unit { has_acted: false })
         .insert(Player)
@@ -372,7 +411,6 @@ fn handle_keys(
     }
     if key_input.just_pressed(KeyCode::Space) {
         match phase.current() {
-            TurnPhase::None => {}
             TurnPhase::SelectMove => {
                 if let Some((_entity, mut unit)) = player_units
                     .iter_mut()

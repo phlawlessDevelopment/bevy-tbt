@@ -10,13 +10,8 @@ mod states;
 mod units;
 
 use crate::{
-    ai_units::AiUnitsPlugin,
-    camera::CameraPlugin,
-    grid::GridPlugin,
-    gui::GuiPlugin,
-    pathfinding::PathfindingPlugin,
-    player_units::PlayerUnitsPlugin,
-    states::{GameState, TurnPhase},
+    ai_units::AiUnitsPlugin, camera::CameraPlugin, grid::GridPlugin, gui::GuiPlugin,
+    pathfinding::PathfindingPlugin, player_units::PlayerUnitsPlugin, states::TurnPhase,
     units::UnitsPlugin,
 };
 fn main() {
@@ -29,7 +24,6 @@ fn main() {
         .add_plugin(PlayerUnitsPlugin)
         .add_plugin(AiUnitsPlugin)
         .add_plugin(PathfindingPlugin)
-        .add_state(GameState::Game)
         .add_state(TurnPhase::SelectUnit)
         .run();
 }
