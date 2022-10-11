@@ -19,6 +19,7 @@ struct SelectedUnitGUI {
     can_act: u32,
     turn_phase: u32,
     space: u32,
+    escape: u32,
 }
 
 impl Plugin for GuiPlugin {
@@ -185,6 +186,20 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     ..default()
                                 }),
                             );
+                            parent.spawn_bundle(
+                                TextBundle::from_section(
+                                    "Escape",
+                                    TextStyle {
+                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                        font_size: 24.0,
+                                        color: Color::WHITE,
+                                    },
+                                )
+                                .with_style(Style {
+                                    margin: UiRect::all(Val::Px(5.0)),
+                                    ..default()
+                                }),
+                            );
                         })
                         .id()
                         .id();
@@ -200,6 +215,7 @@ fn get_labels(mut texts: Query<(Entity, &mut Text)>, mut gui: ResMut<SelectedUni
             "Movement" => gui.movement = entity.id(),
             "Turn Phase" => gui.turn_phase = entity.id(),
             "Space" => gui.space = entity.id(),
+            "Escape" => gui.escape = entity.id(),
             _ => {}
         }
     }
@@ -245,6 +261,12 @@ fn current_state(
             TurnPhase::SelectMove => String::from("Space: wait"),
             TurnPhase::SelectAttacker => String::from("Space: skip"),
             TurnPhase::SelectTarget => String::from("Space: wait"),
+            _ => String::from(""),
+        }
+    }
+    if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.escape == e.id()) {
+        text.sections[0].value = match phase.current() {
+            TurnPhase::SelectMove | TurnPhase::SelectTarget => String::from("Esc: back"),
             _ => String::from(""),
         }
     }
