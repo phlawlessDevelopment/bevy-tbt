@@ -13,6 +13,5 @@ opt-level = 3
 
 [dependencies]
 bevy = { version = "0.8", features = ["wayland","dynamic"] }
-bevy-inspector-egui = "0.13.0"
 bevy_egui = "0.16.1"
 priority-queue = "1.2.3"

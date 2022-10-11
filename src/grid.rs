@@ -6,12 +6,11 @@ use crate::{
     units::{ActiveUnit, Attack, Health, Movement, SelectedUnit, Unit},
 };
 use bevy::prelude::*;
-use bevy_inspector_egui::Inspectable;
 use std::collections::HashMap;
 
 pub struct GridPlugin;
 
-#[derive(Component, Debug, Inspectable)]
+#[derive(Component, Debug)]
 pub struct GridPosition {
     pub x: i32,
     pub y: i32,
@@ -49,25 +48,19 @@ pub struct SelectedTile {
 }
 
 fn highlight_selected_unit(
-    mut tiles: Query<(&Tile, &GridPosition, &mut Sprite)>,
-    ai_units: Query<(Entity, &GridPosition), With<Ai>>,
-    player_units: Query<(Entity, &GridPosition), With<Player>>,
+    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     selected: Res<SelectedUnit>,
+    mut unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
 ) {
-    if let Some((_e, grid)) = player_units
-        .into_iter()
-        .find(|(e, _g)| e.id() == selected.value)
-    {
-        if let Some((tile, grid, mut sprite)) = tiles
-            .iter_mut()
-            .find(|(t, g, s)| g.x == grid.x && g.y == grid.y)
-        {
-            sprite.color.set_r(0.2);
-            sprite.color.set_g(0.2);
-            sprite.color.set_b(0.2);
-            sprite.color.set_a(0.1);
+    for (t, grid, mut sprite) in tiles.iter_mut() {
+        if sprite.color.a() == 0.1 {
+            sprite.color.set_r(1.0);
+            sprite.color.set_g(1.0);
+            sprite.color.set_b(1.0);
+            sprite.color.set_a(1.0);
         }
-    } else if let Some((_e, grid)) = ai_units
+    }
+    if let Some((_e, grid)) = unit_grids
         .into_iter()
         .find(|(e, _g)| e.id() == selected.value)
     {
@@ -164,7 +157,7 @@ fn spawn_tile(
 ) -> Entity {
     commands
         .spawn_bundle(SpriteBundle {
-            texture: asset_server.load("sprites/dice_empty.png"),
+            texture: asset_server.load("sprites/tile.png"),
             transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
             ..default()
         })
@@ -229,33 +222,48 @@ impl Plugin for GridPlugin {
                 rows_cols: 9,
             })
             .add_startup_system(make_tiles)
-            // .add_system(set_blocked_tiles)
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectMove).with_system(set_blocked_tiles),
+                SystemSet::on_enter(TurnPhase::SelectAttacker)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles)),
             )
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::AISelectMove).with_system(set_blocked_tiles),
+                SystemSet::on_enter(TurnPhase::SelectUnit)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles)),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectMove)
-                    .with_system(clear_highlighted_tiles.after(set_blocked_tiles))
-                    .with_system(highlight_reachable_tiles.after(clear_highlighted_tiles)),
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles))
+                    .with_system(highlight_reachable_tiles.after(set_blocked_tiles)),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectTarget)
-                    .with_system(clear_highlighted_tiles.after(set_blocked_tiles))
-                    .with_system(highlight_attackable_tiles.after(clear_highlighted_tiles)),
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles))
+                    .with_system(highlight_attackable_tiles.after(set_blocked_tiles)),
             )
             .add_system_set(
-                SystemSet::on_exit(TurnPhase::SelectTarget).with_system(clear_highlighted_tiles),
+                SystemSet::on_enter(TurnPhase::DoMove)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles)),
             )
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::DoMove).with_system(clear_highlighted_tiles),
+                SystemSet::on_enter(TurnPhase::AISelectMove)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles)),
             )
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_highlighted_tiles),
+                SystemSet::on_enter(TurnPhase::AISelectUnit)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles)),
+            )
+            .add_system_set(
+                SystemSet::on_exit(TurnPhase::AIDoMove)
+                    .with_system(clear_highlighted_tiles)
+                    .with_system(set_blocked_tiles.after(clear_highlighted_tiles)),
             )
             .add_system(highlight_selected_unit);
-            
     }
 }

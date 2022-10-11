@@ -1,13 +1,15 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
 
-use crate::camera::MainCamera;
+use crate::{
+    camera::MainCamera,
+    grid::{GridPosition, Tile},
+};
 
 pub struct UnitsPlugin;
 
 #[derive(Component, Debug)]
-pub struct Unit
-{
-    pub has_acted:bool,
+pub struct Unit {
+    pub has_acted: bool,
 }
 
 #[derive(Component, Debug)]
@@ -33,6 +35,7 @@ pub struct ActiveUnit {
 #[derive(Default, Debug)]
 pub struct SelectedUnit {
     pub value: u32,
+    pub grid: (i32, i32),
 }
 
 fn get_mouse_position(
@@ -70,18 +73,21 @@ fn set_selected_unit(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    units: Query<(Entity, &Transform), With<Unit>>,
+    units: Query<(Entity, &Transform, &GridPosition), With<Unit>>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        if let Some((entity, transform)) = units.into_iter().find(|(entity, transform)| {
-            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                <= min_dist
-        }) {
+        if let Some((entity, transform, grid)) =
+            units.into_iter().find(|(entity, transform, grid)| {
+                mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                    <= min_dist
+            })
+        {
             selected.value = entity.id();
+            selected.grid = (grid.x, grid.y);
         }
     }
 }
