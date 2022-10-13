@@ -219,33 +219,36 @@ fn selected_unit(
     selected: Res<SelectedUnit>,
     gui: Res<SelectedUnitGUI>,
 ) {
-    if let Some((entity, health, movement, unit)) =
-        units.iter().find(|(e, h, m, u)| e.id() == selected.value)
+    if let Some((_entity, health, movement, unit)) = units
+        .iter()
+        .find(|(e, _h, _m, _u)| e.id() == selected.value)
     {
-        if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.can_act == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.can_act == e.id()) {
             text.sections[0].value =
                 format!("{}", if !unit.has_acted { "Can act" } else { "Acted" });
         }
-        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health == e.id()) {
             text.sections[0].value = format!("HP: {}", health.value);
         }
-        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health_max == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health_max == e.id())
+        {
             text.sections[0].value = format!("Max HP: {}", health.max);
         }
-        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.movement == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.movement == e.id()) {
             text.sections[0].value = format!("Movement: {}", movement.distance);
         }
     } else {
-        if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.can_act == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.can_act == e.id()) {
             text.sections[0].value = "".to_string();
         }
-        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health == e.id()) {
             text.sections[0].value = "".to_string();
         }
-        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health_max == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health_max == e.id())
+        {
             text.sections[0].value = "".to_string();
         }
-        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.movement == e.id()) {
+        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.movement == e.id()) {
             text.sections[0].value = "".to_string();
         }
     }
@@ -255,10 +258,10 @@ fn current_state(
     mut texts: Query<(Entity, &mut Text)>,
     gui: Res<SelectedUnitGUI>,
 ) {
-    if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.turn_phase == e.id()) {
+    if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.turn_phase == e.id()) {
         text.sections[0].value = format!("{:?}", phase.current());
     }
-    if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.space == e.id()) {
+    if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.space == e.id()) {
         text.sections[0].value = match phase.current() {
             TurnPhase::SelectUnit => String::from("Space: skip"),
             TurnPhase::SelectMove => String::from("Space: wait"),
@@ -267,7 +270,7 @@ fn current_state(
             _ => String::from(""),
         }
     }
-    if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.escape == e.id()) {
+    if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.escape == e.id()) {
         text.sections[0].value = match phase.current() {
             TurnPhase::SelectMove | TurnPhase::SelectTarget => String::from("Esc: back"),
             _ => String::from(""),

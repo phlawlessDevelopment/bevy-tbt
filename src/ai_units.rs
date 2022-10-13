@@ -3,6 +3,7 @@ use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
 use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Team, Unit};
+
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -89,7 +90,6 @@ fn spawn_unit(
     grid: (i32, i32),
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    grid_config: &Res<GridConfig>,
     sprite_path: &str,
     movement: i32,
     health: i32,
@@ -145,7 +145,7 @@ pub fn make_units(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,
-    mut wave_index: ResMut<WaveIndex>,
+    wave_index: ResMut<WaveIndex>,
     spawns: Res<Spawners>,
 ) {
     let mut rng = rand::thread_rng();
@@ -161,7 +161,7 @@ pub fn make_units(
     let mut dmgs: Vec<i32> = Vec::new();
     let mut ranges: Vec<i32> = Vec::new();
     let mut positions: Vec<(f32, f32)> = Vec::new();
-    for wave_unit in  &level.waves[wave_index.0] {
+    for wave_unit in &level.waves[wave_index.0] {
         let unit_file = fs::File::open(format!(
             "assets/data/enemies/{}.json",
             wave_unit.unit.to_string()
@@ -170,7 +170,7 @@ pub fn make_units(
         let unit_json: serde_json::Value =
             serde_json::from_reader(unit_file).expect("file should be proper JSON");
         let unit: UnitJson = serde_json::from_value(unit_json).unwrap();
-        for i in 0..wave_unit.count {
+        for _i in 0..wave_unit.count {
             sprites.push(format!("sprites/{}", unit.sprite.to_string()));
             movements.push(unit.movement);
             healths.push(unit.health);
@@ -198,7 +198,6 @@ pub fn make_units(
             ),
             &mut commands,
             &asset_server,
-            &grid_config,
             &sprites[i as usize],
             movements[i as usize],
             healths[i as usize],
@@ -220,7 +219,7 @@ fn select_move(
     movements: Query<(Entity, &Movement, &Attack, &Transform), With<Ai>>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
-    mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
+    tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     player_grids_q: Query<(&GridPosition, &Transform), With<Player>>,
     blocked: Res<BlockedTiles>,
     grid_config: Res<GridConfig>,
@@ -250,7 +249,7 @@ fn select_move(
                 .collect();
             let mut player_grids: Vec<(&GridPosition, &Transform)> =
                 player_grids_q.iter().collect();
-            player_grids.sort_by(|(g_a, t_a), (g_b, t_b)| {
+            player_grids.sort_by(|(g_a, _t_a), (g_b, _t_b)| {
                 calculate_a_star_path((g_a.x, g_a.y), (active_grid.x, active_grid.y), &blocked)
                     .len()
                     .cmp(
@@ -305,7 +304,7 @@ fn select_unit(
     mut all_acted: ResMut<AllUnitsActed>,
 ) {
     if !all_acted.value {
-        for (entity, unit, grid) in entities.into_iter() {
+        for (entity, unit, _grid) in entities.into_iter() {
             if unit.has_acted == false {
                 active.value = entity.id();
                 active.set_changed();
@@ -384,13 +383,13 @@ fn select_target(
     mut phase: ResMut<State<TurnPhase>>,
     mut commands: Commands,
 ) {
-    if let Some((active, mut active_ai, active_grid, active_attack)) = ai_units
+    if let Some((_active, mut active_ai, active_grid, active_attack)) = ai_units
         .iter_mut()
-        .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
+        .find(|(entity, _unit, _grid, _attack)| entity.id() == active.value)
     {
         let selection = player_units
             .iter_mut()
-            .find(|(e, grid, transform, health)| {
+            .find(|(_e, grid, _transform, _health)| {
                 let dist = std::cmp::max(
                     i32::abs(grid.x - active_grid.x),
                     i32::abs(grid.y - active_grid.y),

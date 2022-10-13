@@ -70,7 +70,6 @@ fn spawn_unit(
     grid: (i32, i32),
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    grid_config: &Res<GridConfig>,
     sprite_path: &str,
     movement: i32,
     health: i32,
@@ -157,7 +156,6 @@ fn make_units(
             positions[i as usize],
             &mut commands,
             &asset_server,
-            &grid_config,
             sprites[i as usize],
             movements[i as usize],
             healths[i as usize],
@@ -265,11 +263,11 @@ fn select_target(
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
-        if let Some((active, mut active_player, active_grid, active_attack)) = player_units
+        if let Some((_active, mut active_player, active_grid, active_attack)) = player_units
             .iter_mut()
-            .find(|(entity, unit, _grid, _attack)| entity.id() == active.value)
+            .find(|(entity, _unit, _grid, _attack)| entity.id() == active.value)
         {
-            let selection = ai_units.iter_mut().find(|(e, grid, transform, health)| {
+            let selection = ai_units.iter_mut().find(|(_e, grid, transform, _health)| {
                 let dist = std::cmp::max(
                     i32::abs(grid.x - active_grid.x),
                     i32::abs(grid.y - active_grid.y),
@@ -355,7 +353,7 @@ fn handle_keys(
             TurnPhase::SelectMove => {
                 if let Some((_entity, mut unit)) = player_units
                     .iter_mut()
-                    .find(|(e, u)| e.id() == active.value)
+                    .find(|(e, _u)| e.id() == active.value)
                 {
                     unit.has_acted = true;
                     active.value = 0;
@@ -365,7 +363,7 @@ fn handle_keys(
             TurnPhase::SelectTarget => {
                 if let Some((_entity, mut unit)) = player_units
                     .iter_mut()
-                    .find(|(e, u)| e.id() == active.value)
+                    .find(|(e, _u)| e.id() == active.value)
                 {
                     unit.has_acted = true;
                     active.value = 0;

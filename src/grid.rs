@@ -1,5 +1,4 @@
 use crate::{
-    ai_units::Ai,
     pathfinding::calculate_a_star_path,
     player_units::Player,
     states::TurnPhase,
@@ -7,10 +6,8 @@ use crate::{
 };
 use bevy::prelude::*;
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::{self, File},
 };
 pub struct GridPlugin;
 
@@ -57,9 +54,9 @@ pub struct SelectedTile {
 fn highlight_selected_unit(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     selected: Res<SelectedUnit>,
-    mut unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
+    unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
 ) {
-    for (t, grid, mut sprite) in tiles.iter_mut() {
+    for (_t,_grid, mut sprite) in tiles.iter_mut() {
         if sprite.color.a() == 0.1 {
             sprite.color.set_r(1.0);
             sprite.color.set_g(1.0);
@@ -71,9 +68,9 @@ fn highlight_selected_unit(
         .into_iter()
         .find(|(e, _g)| e.id() == selected.value)
     {
-        if let Some((tile, grid, mut sprite)) = tiles
+        if let Some((_tile,_grid, mut sprite)) = tiles
             .iter_mut()
-            .find(|(t, g, s)| g.x == grid.x && g.y == grid.y)
+            .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
         {
             sprite.color.set_r(0.0);
             sprite.color.set_g(1.0);
@@ -90,7 +87,7 @@ fn highlight_attackable_tiles(
 ) {
     let active = active.as_ref();
 
-    if let Some((_e, attack, player, active_grid)) = player_units
+    if let Some((_e, attack, _player, active_grid)) = player_units
         .into_iter()
         .find(|(e, _a, _p, _g)| e.id() == active.value)
     {
@@ -100,7 +97,7 @@ fn highlight_attackable_tiles(
                 i32::abs(grid.y - active_grid.y),
             );
             if dist > 0 && dist <= attack.range {
-                if let Some((_tile, grid, mut sprite)) = tiles
+                if let Some((_tile, _grid, mut sprite)) = tiles
                     .iter_mut()
                     .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
                 {
@@ -220,8 +217,8 @@ fn create_level(
         ),
     ];
     for i in 0..81 {
-        let x_ = (i / grid_config.rows_cols);
-        let y_ = (i % grid_config.rows_cols);
+        let x_ = i / grid_config.rows_cols;
+        let y_ = i % grid_config.rows_cols;
         let x = (x_ as f32 * grid_config.tile_size) - grid_config.offset();
         let y = (y_ as f32 * grid_config.tile_size) - grid_config.offset();
         let chance = 0.25;
@@ -264,7 +261,7 @@ fn set_blocked_tiles(
         {
             blocked.0.insert((tile_pos.x, tile_pos.y), true);
             tile.blocked = true;
-        } else if let Some(obs_pos) = obstacles
+        } else if let Some(_obs_pos) = obstacles
             .into_iter()
             .find(|o| o.x == tile_pos.x && o.y == tile_pos.y)
         {

@@ -1,10 +1,6 @@
 use bevy::{prelude::*, render::camera::RenderTarget};
 
-use crate::{
-    camera::MainCamera,
-    grid::{GridPosition, Tile},
-    states::TurnPhase,
-};
+use crate::{camera::MainCamera, grid::GridPosition, states::TurnPhase};
 
 pub struct UnitsPlugin;
 
@@ -97,11 +93,13 @@ fn set_selected_unit(
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        if let Some((entity, transform, grid, unit)) =
-            units.into_iter().find(|(entity, transform, grid, unit)| {
-                mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                    <= min_dist
-            })
+        if let Some((entity, _transform, grid, unit)) =
+            units
+                .into_iter()
+                .find(|(_entity, transform, _grid, _unit)| {
+                    mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
+                        <= min_dist
+                })
         {
             selected.value = entity.id();
             selected.grid = (grid.x, grid.y);
