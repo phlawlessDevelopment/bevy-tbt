@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{app::PluginGroupBuilder, prelude::*};
 
 mod ai_units;
 mod camera;
@@ -14,16 +14,21 @@ use crate::{
     pathfinding::PathfindingPlugin, player_units::PlayerUnitsPlugin, states::TurnPhase,
     units::UnitsPlugin,
 };
+
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(GridPlugin)
+        .add_plugins_with(DefaultPlugins, |group| {
+            group
+                .add(GridPlugin)
+                .add(PlayerUnitsPlugin)
+                .add(AiUnitsPlugin)
+        })
         .add_plugin(UnitsPlugin)
         .add_plugin(GuiPlugin)
         .add_plugin(CameraPlugin)
         .add_plugin(PathfindingPlugin)
-        .add_plugin(PlayerUnitsPlugin)
-        .add_plugin(AiUnitsPlugin)
+        // .add_plugin(PlayerUnitsPlugin)
+        // .add_plugin(AiUnitsPlugin)
         .add_state(TurnPhase::SelectUnit)
         .run();
 }
