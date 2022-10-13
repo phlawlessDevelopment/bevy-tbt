@@ -2,13 +2,36 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::units::{ActiveUnit, Attack, Health, Movement, Unit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Unit};
 use bevy::prelude::*;
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::fs;
 
 pub struct AiUnitsPlugin;
 
 #[derive(Component, Debug)]
 pub struct Ai;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Wave {
+    pub count: i32,
+    pub unit: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct UnitJson {
+    pub sprite: String,
+    pub movement: i32,
+    pub health: i32,
+    pub damage: i32,
+    pub range: i32,
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct Level {
+    pub waves: Vec<Vec<Wave>>,
+}
+#[derive(Default)]
+struct WaveIndex(usize);
 
 fn setup_active(mut commands: Commands) {
     commands.insert_resource(ActiveUnit { ..default() });
@@ -150,26 +173,61 @@ fn make_units(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,
+    mut wave_index: ResMut<WaveIndex>,
+    spawns: Res<Spawners>,
 ) {
+    let mut rng = rand::thread_rng();
+    let level_file =
+        fs::File::open("assets/data/levels/001.json").expect("file should open read only");
+    let level_json: serde_json::Value =
+        serde_json::from_reader(level_file).expect("file should be proper JSON");
+    let level: Level = serde_json::from_value(level_json).unwrap();
+
+    let mut sprites: Vec<String> = Vec::new();
+    let mut movements: Vec<i32> = Vec::new();
+    let mut healths: Vec<i32> = Vec::new();
+    let mut dmgs: Vec<i32> = Vec::new();
+    let mut ranges: Vec<i32> = Vec::new();
+    let mut positions: Vec<(f32, f32)> = Vec::new();
+    if let Some(wave) = level.waves[wave_index.0].first() {
+        let unit_file = fs::File::open(format!(
+            "assets/data/enemies/{}.json",
+            wave.unit.to_string()
+        ))
+        .expect("file should open read only");
+        let unit_json: serde_json::Value =
+            serde_json::from_reader(unit_file).expect("file should be proper JSON");
+        let unit: UnitJson = serde_json::from_value(unit_json).unwrap();
+        for i in 0..wave.count {
+            sprites.push(format!("sprites/{}", unit.sprite.to_string()));
+            movements.push(unit.movement);
+            healths.push(unit.health);
+            dmgs.push(unit.damage);
+            ranges.push(unit.range);
+            let i: usize = rng.gen_range(0..spawns.ai_locations.len());
+            positions.push(spawns.ai_locations[i]);
+        }
+    }
+
     let mut units = Vec::new();
-    let sprites = ["sprites/sword.png", "sprites/fire.png", "sprites/skull.png"];
-    let movements = [4, 3, 1];
-    let healths = [20, 15, 10];
-    let dmgs = [3, 2, 5];
-    let ranges = [1, 5, 2];
-    let positions = [(8, 7), (7, 8), (8, 8)];
+
     for i in 0..sprites.len() as i32 {
-        let x = (positions[i as usize].0 as f32 * grid_config.tile_size) - grid_config.offset();
-        let y = (positions[i as usize].1 as f32 * grid_config.tile_size) - grid_config.offset();
+        let x = positions[i as usize].0;
+        let y = positions[i as usize].1;
         let unit = spawn_unit(
             x,
             y,
             i,
-            positions[i as usize],
+            (
+                ((positions[i as usize].0 / grid_config.tile_size)
+                    + (grid_config.offset() / grid_config.tile_size)) as i32,
+                ((positions[i as usize].1 / grid_config.tile_size)
+                    + (grid_config.offset() / grid_config.tile_size)) as i32,
+            ),
             &mut commands,
             &asset_server,
             &grid_config,
-            sprites[i as usize],
+            &sprites[i as usize],
             movements[i as usize],
             healths[i as usize],
             dmgs[i as usize],
@@ -269,13 +327,13 @@ fn select_move(
 }
 
 fn select_unit(
-    entities: Query<(Entity, &Unit), With<Ai>>,
+    entities: Query<(Entity, &Unit, &GridPosition), With<Ai>>,
     mut active: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
 ) {
     if !all_acted.value {
-        for (entity, unit) in entities.into_iter() {
+        for (entity, unit, grid) in entities.into_iter() {
             if unit.has_acted == false {
                 active.value = entity.id();
                 active.set_changed();
@@ -308,7 +366,7 @@ fn select_attacker(
     }
 }
 
-fn check_enemy_has_moved(
+fn check_ai_has_moved(
     mut ai_units: Query<&mut Unit, With<Ai>>,
     mut phase: ResMut<State<TurnPhase>>,
     mut all_acted: ResMut<AllUnitsActed>,
@@ -327,6 +385,7 @@ fn check_enemy_has_moved(
         phase.set(TurnPhase::AISelectAttacker).unwrap();
     }
 }
+
 fn check_enemy_has_attacked(
     mut ai_units: Query<&mut Unit, With<Ai>>,
     mut phase: ResMut<State<TurnPhase>>,
@@ -388,14 +447,15 @@ fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
 
 impl Plugin for AiUnitsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(make_units)
+        app.init_resource::<WaveIndex>()
+            .add_startup_system(make_units)
             .add_startup_system(setup_active)
             .add_system_set(SystemSet::on_update(TurnPhase::AIDoMove).with_system(move_active_unit))
             .add_system_set(SystemSet::on_update(TurnPhase::AISelectMove).with_system(select_move))
             .add_system_set(
                 SystemSet::on_update(TurnPhase::AISelectUnit)
-                    .with_system(check_enemy_has_moved)
-                    .with_system(select_unit.after(check_enemy_has_moved)),
+                    .with_system(check_ai_has_moved)
+                    .with_system(select_unit.after(check_ai_has_moved)),
             )
             .add_system_set(
                 SystemSet::on_update(TurnPhase::AISelectAttacker)

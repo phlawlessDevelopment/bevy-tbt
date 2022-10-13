@@ -460,7 +460,7 @@ impl Plugin for PlayerUnitsPlugin {
                 SystemSet::on_update(TurnPhase::SelectTarget).with_system(select_target),
             )
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
+                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit)
             )
             .add_system(handle_keys);
     }

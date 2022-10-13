@@ -3,11 +3,15 @@ use crate::{
     pathfinding::calculate_a_star_path,
     player_units::Player,
     states::TurnPhase,
-    units::{ActiveUnit, Attack, Health, Movement, SelectedUnit, Unit},
+    units::{ActiveUnit, Attack, Health, Movement, SelectedUnit, Spawners, Unit},
 };
 use bevy::prelude::*;
-use std::collections::HashMap;
-
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    fs::{self, File},
+};
 pub struct GridPlugin;
 
 #[derive(Component, Debug)]
@@ -20,6 +24,9 @@ pub struct GridPosition {
 pub struct Tile {
     pub blocked: bool,
 }
+
+#[derive(Component)]
+pub struct Obstacle;
 
 #[derive(Default, Debug)]
 pub struct SelectedPath {
@@ -154,37 +161,69 @@ fn spawn_tile(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
     grid_config: &Res<GridConfig>,
+    blocked: bool,
 ) -> Entity {
-    commands
-        .spawn_bundle(SpriteBundle {
-            texture: asset_server.load("sprites/tile.png"),
-            transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
-            ..default()
-        })
-        .insert(Name::new(format!(
-            "Tile ({},{})",
-            i / grid_config.rows_cols,
-            i % grid_config.rows_cols
-        )))
-        .insert(Tile { blocked: false })
-        .insert(GridPosition {
-            x: i / grid_config.rows_cols,
-            y: i % grid_config.rows_cols,
-        })
-        .id()
+    let mut tile = commands.spawn_bundle(SpriteBundle {
+        texture: asset_server.load(if blocked {
+            "sprites/blocked.png"
+        } else {
+            "sprites/tile.png"
+        }),
+        transform: Transform::from_translation(Vec3::new(x, y, 0.0)),
+        ..default()
+    });
+    tile.insert(Name::new(format!(
+        "Tile ({},{})",
+        i / grid_config.rows_cols,
+        i % grid_config.rows_cols
+    )))
+    .insert(Tile { blocked })
+    .insert(GridPosition {
+        x: i / grid_config.rows_cols,
+        y: i % grid_config.rows_cols,
+    });
+    if blocked {
+        tile.insert(Obstacle);
+    }
+
+    return tile.id();
 }
 
-fn make_tiles(
+
+
+fn create_level(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,
+    mut spawners: ResMut<Spawners>,
 ) {
+
     let mut tiles = Vec::new();
+    let mut rng = rand::thread_rng();
     for i in 0..81 {
-        let x = ((i / grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let y = ((i % grid_config.rows_cols) as f32 * grid_config.tile_size) - grid_config.offset();
-        let tile = spawn_tile(x, y, i, &mut commands, &asset_server, &grid_config);
+        let x_ = (i / grid_config.rows_cols);
+        let y_ = (i % grid_config.rows_cols);
+        let x = (x_ as f32 * grid_config.tile_size) - grid_config.offset();
+        let y = (y_ as f32 * grid_config.tile_size) - grid_config.offset();
+        let chance = 0.25;
+        let roll = rng.gen_range(0.0..1.0);
+        let edge = x_ == 0
+            || y_ == 0
+            || x_ == grid_config.rows_cols - 1
+            || y_ == grid_config.rows_cols - 1;
+        let tile = spawn_tile(
+            x,
+            y,
+            i,
+            &mut commands,
+            &asset_server,
+            &grid_config,
+            !edge && roll <= chance,
+        );
         tiles.push(tile);
+        if edge {
+            spawners.ai_locations.push((x,y));
+        }
     }
     commands
         .spawn()
@@ -195,6 +234,7 @@ fn make_tiles(
 
 fn set_blocked_tiles(
     units: Query<&GridPosition, With<Unit>>,
+    obstacles: Query<&GridPosition, With<Obstacle>>,
     mut tiles: Query<(&GridPosition, &mut Tile)>,
     mut blocked: ResMut<BlockedTiles>,
 ) {
@@ -205,13 +245,18 @@ fn set_blocked_tiles(
         {
             blocked.0.insert((tile_pos.x, tile_pos.y), true);
             tile.blocked = true;
+        } else if let Some(obs_pos) = obstacles
+            .into_iter()
+            .find(|o| o.x == tile_pos.x && o.y == tile_pos.y)
+        {
+            blocked.0.insert((tile_pos.x, tile_pos.y), true);
+            tile.blocked = true;
         } else {
             blocked.0.insert((tile_pos.x, tile_pos.y), false);
             tile.blocked = false;
         }
     }
 }
-
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedPath>()
@@ -221,7 +266,7 @@ impl Plugin for GridPlugin {
                 tile_size: 64.0,
                 rows_cols: 9,
             })
-            .add_startup_system(make_tiles)
+            .add_startup_system(create_level)
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectAttacker)
                     .with_system(clear_highlighted_tiles)

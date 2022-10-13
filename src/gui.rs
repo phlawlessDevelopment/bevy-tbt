@@ -41,7 +41,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
         .spawn_bundle(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                justify_content: JustifyContent::SpaceBetween,
+                align_items: AlignItems::FlexStart,
+                justify_content : JustifyContent::FlexStart,
+
                 ..default()
             },
             color: Color::NONE.into(),
@@ -52,7 +54,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
             parent
                 .spawn_bundle(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Px(200.0), Val::Percent(100.0)),
+                        size: Size::new(Val::Px(200.0), Val::Percent(25.0)),
                         border: UiRect::all(Val::Px(2.0)),
                         ..default()
                     },
@@ -67,6 +69,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                                 align_items: AlignItems::FlexStart,
                                 flex_direction: FlexDirection::ColumnReverse,
+                                border: UiRect::all(Val::Px(2.0)),
                                 ..default()
                             },
                             color: Color::rgb(0.15, 0.15, 0.15).into(),
@@ -94,7 +97,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
-                                        color: Color::WHITE,
+                                        color: Color::RED,
                                     },
                                 )
                                 .with_style(Style {
@@ -108,7 +111,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
-                                        color: Color::WHITE,
+                                        color: Color::RED,
                                     },
                                 )
                                 .with_style(Style {
@@ -122,7 +125,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
-                                        color: Color::WHITE,
+                                        color: Color::BLUE,
                                     },
                                 )
                                 .with_style(Style {
@@ -169,6 +172,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                 )
                                 .with_style(Style {
                                     margin: UiRect::all(Val::Px(5.0)),
+                                    border: UiRect::all(Val::Px(2.0)),
                                     ..default()
                                 }),
                             );
@@ -226,9 +230,6 @@ fn selected_unit(
     selected: Res<SelectedUnit>,
     gui: Res<SelectedUnitGUI>,
 ) {
-    // for (e, text) in texts.iter_mut() {
-    //     println!("{}", text.sections[0].value);
-    // }
     if let Some((entity, health, movement, unit)) =
         units.iter().find(|(e, h, m, u)| e.id() == selected.value)
     {

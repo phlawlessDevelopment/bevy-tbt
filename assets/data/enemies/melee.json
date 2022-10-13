@@ -1,0 +1,7 @@
+{
+    "sprite":"sword.png",
+    "movement":4,
+    "health":5,
+    "damage":2,
+    "range":1
+}

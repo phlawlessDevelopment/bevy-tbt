@@ -37,6 +37,11 @@ pub struct SelectedUnit {
     pub value: u32,
     pub grid: (i32, i32),
 }
+#[derive(Default, Debug)]
+pub struct Spawners {
+    pub ai_locations: Vec<(f32, f32)>,
+    pub player_locations: Vec<(f32, f32)>,
+}
 
 fn get_mouse_position(
     windows: Res<Windows>,
@@ -95,6 +100,7 @@ fn set_selected_unit(
 impl Plugin for UnitsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SelectedUnit>()
+            .init_resource::<Spawners>()
             .add_system(set_selected_unit);
     }
 }

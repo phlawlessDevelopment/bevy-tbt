@@ -1,0 +1,7 @@
+{
+    "sprite":"skull.png",
+    "movement":1,
+    "health":15,
+    "damage":2,
+    "range":3
+}

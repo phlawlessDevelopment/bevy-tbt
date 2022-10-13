@@ -17,13 +17,13 @@ use crate::{
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(GridPlugin)
         .add_plugin(UnitsPlugin)
         .add_plugin(GuiPlugin)
         .add_plugin(CameraPlugin)
-        .add_plugin(GridPlugin)
+        .add_plugin(PathfindingPlugin)
         .add_plugin(PlayerUnitsPlugin)
         .add_plugin(AiUnitsPlugin)
-        .add_plugin(PathfindingPlugin)
         .add_state(TurnPhase::SelectUnit)
         .run();
 }
