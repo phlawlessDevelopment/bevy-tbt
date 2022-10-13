@@ -42,7 +42,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 align_items: AlignItems::FlexStart,
-                justify_content : JustifyContent::FlexStart,
+                justify_content: JustifyContent::FlexStart,
+                border: UiRect::all(Val::Px(2.0)),
 
                 ..default()
             },
@@ -69,28 +70,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                                 align_items: AlignItems::FlexStart,
                                 flex_direction: FlexDirection::ColumnReverse,
-                                border: UiRect::all(Val::Px(2.0)),
+                                padding: UiRect {
+                                    top: Val::Px(8.0),
+                                    ..default()
+                                },
                                 ..default()
                             },
                             color: Color::rgb(0.15, 0.15, 0.15).into(),
                             ..default()
                         })
                         .with_children(|parent| {
-                            // text
-                            parent.spawn_bundle(
-                                TextBundle::from_section(
-                                    "Selected Unit",
-                                    TextStyle {
-                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 24.0,
-                                        color: Color::WHITE,
-                                    },
-                                )
-                                .with_style(Style {
-                                    margin: UiRect::all(Val::Px(5.0)),
-                                    ..default()
-                                }),
-                            );
                             parent.spawn_bundle(
                                 TextBundle::from_section(
                                     "HP",
@@ -125,7 +114,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
-                                        color: Color::BLUE,
+                                        color: Color::YELLOW_GREEN,
                                     },
                                 )
                                 .with_style(Style {
@@ -139,7 +128,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
-                                        color: Color::WHITE,
+                                        color: Color::GOLD,
                                     },
                                 )
                                 .with_style(Style {
@@ -149,7 +138,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                             );
                             parent.spawn_bundle(
                                 TextBundle::from_section(
-                                    "[============]",
+                                    "  ",
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
@@ -167,7 +156,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                                     TextStyle {
                                         font: asset_server.load("fonts/SourceCodePro.ttf"),
                                         font_size: 24.0,
-                                        color: Color::WHITE,
+                                        color: Color::VIOLET,
                                     },
                                 )
                                 .with_style(Style {
@@ -245,6 +234,19 @@ fn selected_unit(
         }
         if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.movement == e.id()) {
             text.sections[0].value = format!("Movement: {}", movement.distance);
+        }
+    } else {
+        if let Some((enitity, mut text)) = texts.iter_mut().find(|(e, t)| gui.can_act == e.id()) {
+            text.sections[0].value = "".to_string();
+        }
+        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health == e.id()) {
+            text.sections[0].value = "".to_string();
+        }
+        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.health_max == e.id()) {
+            text.sections[0].value = "".to_string();
+        }
+        if let Some((entity, mut text)) = texts.iter_mut().find(|(e, t)| gui.movement == e.id()) {
+            text.sections[0].value = "".to_string();
         }
     }
 }

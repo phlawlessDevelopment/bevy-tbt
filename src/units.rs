@@ -3,13 +3,21 @@ use bevy::{prelude::*, render::camera::RenderTarget};
 use crate::{
     camera::MainCamera,
     grid::{GridPosition, Tile},
+    states::TurnPhase,
 };
 
 pub struct UnitsPlugin;
 
+#[derive(Debug, PartialEq)]
+pub enum Team {
+    PLAYER,
+    AI,
+}
+
 #[derive(Component, Debug)]
 pub struct Unit {
     pub has_acted: bool,
+    pub team: Team,
 }
 
 #[derive(Component, Debug)]
@@ -75,24 +83,39 @@ fn get_mouse_position(
 
 fn set_selected_unit(
     mut selected: ResMut<SelectedUnit>,
+    mut active: ResMut<ActiveUnit>,
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    units: Query<(Entity, &Transform, &GridPosition), With<Unit>>,
+    units: Query<(Entity, &Transform, &GridPosition, &Unit)>,
+    mut phase: ResMut<State<TurnPhase>>,
 ) {
-    if mouse_input.just_pressed(MouseButton::Left) {
+    if !(*phase.current() == TurnPhase::SelectMove || *phase.current() == TurnPhase::SelectTarget)
+        && mouse_input.just_pressed(MouseButton::Left)
+    {
         let mouse_pos = get_mouse_position(windows, q_camera);
         //get closest
         let min_dist = 32.0;
         // let mut selection: Option<&Label> = None;
-        if let Some((entity, transform, grid)) =
-            units.into_iter().find(|(entity, transform, grid)| {
+        if let Some((entity, transform, grid, unit)) =
+            units.into_iter().find(|(entity, transform, grid, unit)| {
                 mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
                     <= min_dist
             })
         {
             selected.value = entity.id();
             selected.grid = (grid.x, grid.y);
+            let cur_phase = *phase.current();
+            if !unit.has_acted && unit.team == Team::PLAYER {
+                if cur_phase == TurnPhase::SelectUnit {
+                    active.value = entity.id();
+                    phase.set(TurnPhase::SelectMove).unwrap();
+                } else if cur_phase == TurnPhase::SelectAttacker {
+                    active.value = entity.id();
+                    phase.set(TurnPhase::SelectTarget).unwrap();
+                }
+                mouse_input.reset(MouseButton::Left);
+            }
         }
     }
 }

@@ -1,9 +1,12 @@
 use crate::ai_units::Ai;
 use crate::camera::MainCamera;
-use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile, Tile};
+use crate::grid::{
+    BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile,
+    Tile, clear_highlighted_tiles_func,
+};
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
-use crate::units::{ActiveUnit, Attack, Health, Movement, Unit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Team, Unit, SelectedUnit};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
@@ -82,38 +85,6 @@ fn spawn_unit(
         })
         .with_children(|parent| {
             parent.spawn_bundle(SpriteBundle {
-                texture: asset_server.load("sprites/tag_1.png"),
-                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-                sprite: Sprite {
-                    color: Color::Rgba {
-                        red: 0.75,
-                        green: 0.75,
-                        blue: 0.0,
-                        alpha: 1.0,
-                    },
-                    ..default()
-                },
-                ..default()
-            });
-            parent.spawn_bundle(SpriteBundle {
-                texture: asset_server.load("sprites/tag_shield_1.png"),
-                transform: Transform::from_translation(Vec3::new(
-                    -grid_config.tile_size / 2.0,
-                    grid_config.tile_size / 2.0,
-                    1.0,
-                )),
-                sprite: Sprite {
-                    color: Color::Rgba {
-                        red: 0.0,
-                        green: 0.0,
-                        blue: 0.75,
-                        alpha: 1.0,
-                    },
-                    ..default()
-                },
-                ..default()
-            });
-            parent.spawn_bundle(SpriteBundle {
                 texture: asset_server.load(sprite_path),
                 transform: Transform::default().with_scale(Vec3::new(0.75, 0.75, 1.0)),
                 sprite: Sprite {
@@ -128,7 +99,10 @@ fn spawn_unit(
                 ..default()
             });
         })
-        .insert(Unit { has_acted: false })
+        .insert(Unit {
+            has_acted: false,
+            team: Team::PLAYER,
+        })
         .insert(Player)
         .insert(Name::new(format!("Player Unit {}", i)))
         .insert(Movement { distance: movement })
@@ -264,56 +238,6 @@ fn select_move(
     }
 }
 
-fn select_attacker(
-    mut mouse_input: ResMut<Input<MouseButton>>,
-    windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Unit), With<Player>>,
-    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut active: ResMut<ActiveUnit>,
-    mut phase: ResMut<State<TurnPhase>>,
-) {
-    if mouse_input.just_pressed(MouseButton::Left) {
-        let mouse_pos = get_mouse_position(windows, q_camera);
-        //get closest
-        let min_dist = 32.0;
-        // let mut selection: Option<&Label> = None;
-        let selection = entities.into_iter().find(|(_e, transform, p)| {
-            !p.has_acted
-                && mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                    <= min_dist
-        });
-        if let Some((e, _transform, player)) = selection {
-            active.value = e.id();
-            phase.set(TurnPhase::SelectTarget).unwrap();
-            mouse_input.reset(MouseButton::Left);
-        }
-    }
-}
-fn select_unit(
-    mut mouse_input: ResMut<Input<MouseButton>>,
-    windows: Res<Windows>,
-    entities: Query<(Entity, &mut Transform, &Unit), With<Player>>,
-    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut active: ResMut<ActiveUnit>,
-    mut phase: ResMut<State<TurnPhase>>,
-) {
-    if mouse_input.just_pressed(MouseButton::Left) {
-        let mouse_pos = get_mouse_position(windows, q_camera);
-        //get closest
-        let min_dist = 32.0;
-        // let mut selection: Option<&Label> = None;
-        let selection = entities.into_iter().find(|(_e, transform, p)| {
-            !p.has_acted
-                && mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                    <= min_dist
-        });
-        if let Some((e, _transform, _p)) = selection {
-            active.value = e.id();
-            phase.set(TurnPhase::SelectMove).unwrap();
-            mouse_input.reset(MouseButton::Left);
-        }
-    }
-}
 fn select_target(
     mut mouse_input: ResMut<Input<MouseButton>>,
     windows: Res<Windows>,
@@ -396,9 +320,11 @@ fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
 }
 fn handle_keys(
     mut active: ResMut<ActiveUnit>,
+    mut selected: ResMut<SelectedUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut key_input: ResMut<Input<KeyCode>>,
     mut player_units: Query<(Entity, &mut Unit), With<Player>>,
+    mut tiles: Query<&mut Sprite, With<Tile>>,
 ) {
     if key_input.just_pressed(KeyCode::Escape) {
         match phase.current() {
@@ -406,7 +332,9 @@ fn handle_keys(
             TurnPhase::SelectTarget => phase.set(TurnPhase::SelectAttacker).unwrap(),
             _ => {}
         }
+        clear_highlighted_tiles_func(&mut tiles);
         active.value = 0;
+        selected.value = 0;
         key_input.clear();
     }
     if key_input.just_pressed(KeyCode::Space) {
@@ -447,20 +375,17 @@ impl Plugin for PlayerUnitsPlugin {
             .add_system_set(SystemSet::on_update(TurnPhase::DoMove).with_system(move_active_unit))
             .add_system_set(SystemSet::on_update(TurnPhase::SelectMove).with_system(select_move))
             .add_system_set(
-                SystemSet::on_update(TurnPhase::SelectUnit)
-                    .with_system(check_player_has_moved)
-                    .with_system(select_unit.after(check_player_has_moved)),
+                SystemSet::on_update(TurnPhase::SelectUnit).with_system(check_player_has_moved), // .with_system(select_unit.after(check_player_has_moved)),
             )
             .add_system_set(
                 SystemSet::on_update(TurnPhase::SelectAttacker)
-                    .with_system(check_player_has_attacked)
-                    .with_system(select_attacker),
+                    .with_system(check_player_has_attacked), // .with_system(select_attacker),
             )
             .add_system_set(
                 SystemSet::on_update(TurnPhase::SelectTarget).with_system(select_target),
             )
             .add_system_set(
-                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit)
+                SystemSet::on_enter(TurnPhase::SelectUnit).with_system(clear_active_unit),
             )
             .add_system(handle_keys);
     }

@@ -75,10 +75,10 @@ fn highlight_selected_unit(
             .iter_mut()
             .find(|(t, g, s)| g.x == grid.x && g.y == grid.y)
         {
-            sprite.color.set_r(0.2);
-            sprite.color.set_g(0.2);
-            sprite.color.set_b(0.2);
-            sprite.color.set_a(0.1);
+            sprite.color.set_r(0.0);
+            sprite.color.set_g(1.0);
+            sprite.color.set_b(0.0);
+            sprite.color.set_a(1.0);
         }
     }
 }
@@ -106,7 +106,7 @@ fn highlight_attackable_tiles(
                 {
                     sprite.color.set_b(0.0);
                     sprite.color.set_g(0.0);
-                    sprite.color.set_a(0.2);
+                    sprite.color.set_a(1.0);
                 }
             }
         }
@@ -139,12 +139,20 @@ fn highlight_reachable_tiles(
             }) {
                 sprite.color.set_r(0.0);
                 sprite.color.set_b(0.0);
-                sprite.color.set_a(0.05);
+                sprite.color.set_a(1.0);
             }
         }
     }
 }
 
+pub fn clear_highlighted_tiles_func(tiles: &mut Query<&mut Sprite, With<Tile>>) {
+    for mut sprite in tiles.iter_mut() {
+        sprite.color.set_r(1.0);
+        sprite.color.set_g(1.0);
+        sprite.color.set_b(1.0);
+        sprite.color.set_a(1.0);
+    }
+}
 fn clear_highlighted_tiles(mut tiles: Query<&mut Sprite, With<Tile>>) {
     for mut sprite in tiles.iter_mut() {
         sprite.color.set_r(1.0);
@@ -189,15 +197,12 @@ fn spawn_tile(
     return tile.id();
 }
 
-
-
 fn create_level(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,
     mut spawners: ResMut<Spawners>,
 ) {
-
     let mut tiles = Vec::new();
     let mut rng = rand::thread_rng();
     for i in 0..81 {
@@ -222,7 +227,7 @@ fn create_level(
         );
         tiles.push(tile);
         if edge {
-            spawners.ai_locations.push((x,y));
+            spawners.ai_locations.push((x, y));
         }
     }
     commands

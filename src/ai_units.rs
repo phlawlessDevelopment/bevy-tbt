@@ -2,7 +2,7 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Unit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Unit, Team};
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ struct Wave {
     pub count: i32,
     pub unit: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 struct UnitJson {
     pub sprite: String,
@@ -103,44 +104,12 @@ fn spawn_unit(
         })
         .with_children(|parent| {
             parent.spawn_bundle(SpriteBundle {
-                texture: asset_server.load("sprites/tag_1.png"),
-                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-                sprite: Sprite {
-                    color: Color::Rgba {
-                        red: 0.75,
-                        green: 0.75,
-                        blue: 0.0,
-                        alpha: 1.0,
-                    },
-                    ..default()
-                },
-                ..default()
-            });
-            parent.spawn_bundle(SpriteBundle {
-                texture: asset_server.load("sprites/tag_shield_1.png"),
-                transform: Transform::from_translation(Vec3::new(
-                    -grid_config.tile_size / 2.0,
-                    grid_config.tile_size / 2.0,
-                    1.0,
-                )),
-                sprite: Sprite {
-                    color: Color::Rgba {
-                        red: 0.0,
-                        green: 0.0,
-                        blue: 0.75,
-                        alpha: 1.0,
-                    },
-                    ..default()
-                },
-                ..default()
-            });
-            parent.spawn_bundle(SpriteBundle {
                 texture: asset_server.load(sprite_path),
                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0))
                     .with_scale(Vec3::new(0.75, 0.75, 1.0)),
                 sprite: Sprite {
                     color: Color::Rgba {
-                        red: 0.25,
+                        red: 0.85,
                         green: 0.0,
                         blue: 0.0,
                         alpha: 1.0,
@@ -150,7 +119,7 @@ fn spawn_unit(
                 ..default()
             });
         })
-        .insert(Unit { has_acted: false })
+        .insert(Unit { has_acted: false, team:Team::AI })
         .insert(Ai)
         .insert(Name::new(format!("Ai Unit {}", i)))
         .insert(Attack {
