@@ -14,7 +14,7 @@ pub struct AiUnitsPlugin;
 pub struct Ai;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Wave {
+struct WaveUnit {
     pub count: i32,
     pub unit: String,
 }
@@ -29,7 +29,7 @@ struct UnitJson {
 }
 #[derive(Serialize, Deserialize, Debug)]
 struct Level {
-    pub waves: Vec<Vec<Wave>>,
+    pub waves: Vec<Vec<WaveUnit>>,
 }
 #[derive(Default)]
 pub struct WaveIndex(usize);
@@ -161,16 +161,16 @@ pub fn make_units(
     let mut dmgs: Vec<i32> = Vec::new();
     let mut ranges: Vec<i32> = Vec::new();
     let mut positions: Vec<(f32, f32)> = Vec::new();
-    if let Some(wave) = level.waves[wave_index.0].first() {
+    for wave_unit in  &level.waves[wave_index.0] {
         let unit_file = fs::File::open(format!(
             "assets/data/enemies/{}.json",
-            wave.unit.to_string()
+            wave_unit.unit.to_string()
         ))
         .expect("file should open read only");
         let unit_json: serde_json::Value =
             serde_json::from_reader(unit_file).expect("file should be proper JSON");
         let unit: UnitJson = serde_json::from_value(unit_json).unwrap();
-        for i in 0..wave.count {
+        for i in 0..wave_unit.count {
             sprites.push(format!("sprites/{}", unit.sprite.to_string()));
             movements.push(unit.movement);
             healths.push(unit.health);
