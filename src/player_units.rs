@@ -1,12 +1,12 @@
 use crate::ai_units::Ai;
 use crate::camera::MainCamera;
 use crate::grid::{
-    BlockedTiles, GridConfig, GridPosition, SelectedPath, SelectedTile,
-    Tile, clear_highlighted_tiles_func,
+    clear_highlighted_tiles_func, BlockedTiles, GridConfig, GridPosition, SelectedPath,
+    SelectedTile, Tile,
 };
 use crate::pathfinding::calculate_a_star_path;
 use crate::states::TurnPhase;
-use crate::units::{ActiveUnit, Attack, Health, Movement, Team, Unit, SelectedUnit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, SelectedUnit, Team, Unit};
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 
@@ -127,12 +127,25 @@ fn make_units(
     grid_config: Res<GridConfig>,
 ) {
     let mut units = Vec::new();
-    let sprites = ["sprites/sword.png", "sprites/fire.png", "sprites/crown.png"];
-    let movements = [4, 3, 1];
+    let sprites = ["sprites/crown.png", "sprites/sword.png", "sprites/fire.png"];
+    let movements = [1, 5, 3];
     let healths = [20, 15, 10];
-    let dmgs = [3, 2, 5];
-    let ranges = [1, 5, 2];
-    let positions = [(0, 1), (1, 0), (0, 0)];
+    let dmgs = [7, 3, 5];
+    let ranges = [1, 1, 4];
+    let positions = [
+        (
+            grid_config.rows_cols / 2 as i32,
+            grid_config.rows_cols / 2 as i32,
+        ),
+        (
+            grid_config.rows_cols / 2 as i32 - 1,
+            grid_config.rows_cols / 2 as i32,
+        ),
+        (
+            grid_config.rows_cols / 2 as i32 + 1,
+            grid_config.rows_cols / 2 as i32,
+        ),
+    ];
 
     for i in 0..sprites.len() as i32 {
         let x = (positions[i as usize].0 as f32 * grid_config.tile_size) - grid_config.offset();

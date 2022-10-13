@@ -205,6 +205,20 @@ fn create_level(
 ) {
     let mut tiles = Vec::new();
     let mut rng = rand::thread_rng();
+    let positions = [
+        (
+            grid_config.rows_cols / 2 as i32,
+            grid_config.rows_cols / 2 as i32,
+        ),
+        (
+            grid_config.rows_cols / 2 as i32 - 1,
+            grid_config.rows_cols / 2 as i32,
+        ),
+        (
+            grid_config.rows_cols / 2 as i32 + 1,
+            grid_config.rows_cols / 2 as i32,
+        ),
+    ];
     for i in 0..81 {
         let x_ = (i / grid_config.rows_cols);
         let y_ = (i % grid_config.rows_cols);
@@ -223,7 +237,7 @@ fn create_level(
             &mut commands,
             &asset_server,
             &grid_config,
-            !edge && roll <= chance,
+            !edge && !positions.contains(&(x_, y_)) && roll <= chance,
         );
         tiles.push(tile);
         if edge {
@@ -271,7 +285,7 @@ impl Plugin for GridPlugin {
                 tile_size: 64.0,
                 rows_cols: 9,
             })
-            .add_startup_system(create_level)
+            .add_startup_system(create_level.before(crate::ai_units::make_units))
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectAttacker)
                     .with_system(clear_highlighted_tiles)

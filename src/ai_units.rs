@@ -2,7 +2,7 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Unit, Team};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Team, Unit};
 use bevy::prelude::*;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,7 @@ struct Level {
     pub waves: Vec<Vec<Wave>>,
 }
 #[derive(Default)]
-struct WaveIndex(usize);
+pub struct WaveIndex(usize);
 
 fn setup_active(mut commands: Commands) {
     commands.insert_resource(ActiveUnit { ..default() });
@@ -119,7 +119,10 @@ fn spawn_unit(
                 ..default()
             });
         })
-        .insert(Unit { has_acted: false, team:Team::AI })
+        .insert(Unit {
+            has_acted: false,
+            team: Team::AI,
+        })
         .insert(Ai)
         .insert(Name::new(format!("Ai Unit {}", i)))
         .insert(Attack {
@@ -138,7 +141,7 @@ fn spawn_unit(
         .id()
 }
 
-fn make_units(
+pub fn make_units(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,

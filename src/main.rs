@@ -20,8 +20,8 @@ fn main() {
         .add_plugins_with(DefaultPlugins, |group| {
             group
                 .add(GridPlugin)
-                .add(PlayerUnitsPlugin)
-                .add(AiUnitsPlugin)
+                .add_after::<GridPlugin, _>(PlayerUnitsPlugin)
+                .add_after::<GridPlugin, _>(AiUnitsPlugin)
         })
         .add_plugin(UnitsPlugin)
         .add_plugin(GuiPlugin)
