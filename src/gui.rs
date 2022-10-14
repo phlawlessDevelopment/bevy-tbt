@@ -80,62 +80,80 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut gui: ResMut
                             ..default()
                         })
                         .with_children(|parent| {
-                            parent.spawn_bundle(
-                                TextBundle::from_section(
-                                    "HP",
-                                    TextStyle {
-                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 24.0,
-                                        color: Color::RED,
+                            parent
+                                .spawn_bundle(NodeBundle {
+                                    style: Style {
+                                        flex_direction: FlexDirection::Row,
+                                        ..default()
                                     },
-                                )
-                                .with_style(Style {
-                                    margin: UiRect::all(Val::Px(5.0)),
+                                    color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
                                     ..default()
-                                }),
-                            );
-                            parent.spawn_bundle(
-                                TextBundle::from_section(
-                                    "Max HP",
-                                    TextStyle {
-                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 24.0,
-                                        color: Color::RED,
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(ImageBundle {
+                                        image: UiImage {
+                                            0: asset_server.load("sprites/heart.png"),
+                                        },
+                                        style: Style {
+                                            size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    });
+                                    parent.spawn_bundle(
+                                        TextBundle::from_section(
+                                            "HP",
+                                            TextStyle {
+                                                font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                                font_size: 24.0,
+                                                color: Color::RED,
+                                            },
+                                        )
+                                        .with_style(
+                                            Style {
+                                                margin: UiRect::all(Val::Px(5.0)),
+                                                ..default()
+                                            },
+                                        ),
+                                    );
+                                });
+                            parent
+                                .spawn_bundle(NodeBundle {
+                                    style: Style {
+                                        flex_direction: FlexDirection::Row,
+                                        ..default()
                                     },
-                                )
-                                .with_style(Style {
-                                    margin: UiRect::all(Val::Px(5.0)),
+                                    color: Color::rgba(0.0, 0.0, 0.0, 0.0).into(),
                                     ..default()
-                                }),
-                            );
-                            parent.spawn_bundle(SpriteBundle {
-                                texture: asset_server.load(sprite_path),
-                                transform: Transform::default().with_scale(Vec3::new(0.75, 0.75, 1.0)),
-                                sprite: Sprite {
-                                    color: Color::Rgba {
-                                        red: 0.0,
-                                        green: 0.25,
-                                        blue: 0.0,
-                                        alpha: 1.0,
-                                    },
-                                    ..default()
-                                },
-                                ..default()
-                            });
-                            parent.spawn_bundle(
-                                TextBundle::from_section(
-                                    "Movement",
-                                    TextStyle {
-                                        font: asset_server.load("fonts/SourceCodePro.ttf"),
-                                        font_size: 24.0,
-                                        color: Color::YELLOW_GREEN,
-                                    },
-                                )
-                                .with_style(Style {
-                                    margin: UiRect::all(Val::Px(5.0)),
-                                    ..default()
-                                }),
-                            );
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(ImageBundle {
+                                        image: UiImage {
+                                            0: asset_server.load("sprites/arrow.png"),
+                                        },
+                                        style: Style {
+                                            size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    });
+                                    parent.spawn_bundle(
+                                        TextBundle::from_section(
+                                            "Movement",
+                                            TextStyle {
+                                                font: asset_server.load("fonts/SourceCodePro.ttf"),
+                                                font_size: 24.0,
+                                                color: Color::RED,
+                                            },
+                                        )
+                                        .with_style(
+                                            Style {
+                                                margin: UiRect::all(Val::Px(5.0)),
+                                                ..default()
+                                            },
+                                        ),
+                                    );
+                                });
                             parent.spawn_bundle(
                                 TextBundle::from_section(
                                     "Can act",
@@ -242,14 +260,10 @@ fn selected_unit(
                 format!("{}", if !unit.has_acted { "Can act" } else { "Acted" });
         }
         if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health == e.id()) {
-            text.sections[0].value = format!("HP: {}", health.value);
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health_max == e.id())
-        {
-            text.sections[0].value = format!("Max HP: {}", health.max);
+            text.sections[0].value = format!("{}/{}", health.value, health.max);
         }
         if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.movement == e.id()) {
-            text.sections[0].value = format!("Movement: {}", movement.distance);
+            text.sections[0].value = format!("{}", movement.distance);
         }
     } else {
         if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.can_act == e.id()) {
