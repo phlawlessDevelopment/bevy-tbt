@@ -339,12 +339,17 @@ fn handle_keys(
 ) {
     if key_input.just_pressed(KeyCode::Escape) {
         match phase.current() {
-            TurnPhase::SelectMove => phase.set(TurnPhase::SelectUnit).unwrap(),
-            TurnPhase::SelectTarget => phase.set(TurnPhase::SelectAttacker).unwrap(),
+            TurnPhase::SelectMove => {
+                phase.set(TurnPhase::SelectUnit).unwrap();
+                active.value = 0;
+            }
+            TurnPhase::SelectTarget => {
+                phase.set(TurnPhase::SelectAttacker).unwrap();
+                active.value = 0;
+            }
             _ => {}
         }
         clear_highlighted_tiles_func(&mut tiles);
-        active.value = 0;
         selected.value = 0;
         key_input.clear();
     }
@@ -390,7 +395,7 @@ impl Plugin for PlayerUnitsPlugin {
             )
             .add_system_set(
                 SystemSet::on_update(TurnPhase::SelectAttacker)
-                    .with_system(check_player_has_attacked), // .with_system(select_attacker),
+                    .with_system(check_player_has_attacked),
             )
             .add_system_set(
                 SystemSet::on_update(TurnPhase::SelectTarget).with_system(select_target),

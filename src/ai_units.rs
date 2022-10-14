@@ -2,7 +2,7 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Team, Unit};
+use crate::units::{self, ActiveUnit, Attack, Health, Movement, Spawners, Team, Unit};
 
 use bevy::prelude::*;
 use rand::Rng;
@@ -141,11 +141,11 @@ fn spawn_unit(
         .id()
 }
 
-pub fn make_units(
+pub fn spawn_wave(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_config: Res<GridConfig>,
-    wave_index: ResMut<WaveIndex>,
+    mut wave_index: ResMut<WaveIndex>,
     spawns: Res<Spawners>,
 ) {
     let mut rng = rand::thread_rng();
@@ -211,6 +211,7 @@ pub fn make_units(
         .insert(Name::new("Ai Units"))
         .insert_bundle(SpatialBundle::default())
         .push_children(&units);
+    wave_index.0 += 1;
 }
 
 fn select_move(
@@ -376,6 +377,15 @@ fn check_enemy_has_attacked(
         phase.set(TurnPhase::SelectUnit).unwrap();
     }
 }
+
+fn check_remaining_units(ai_units: Query<&Ai>, mut phase: ResMut<State<TurnPhase>>) {
+    if ai_units.is_empty() {
+        match phase.set(TurnPhase::AiSpawnWave) {
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
+}
 fn select_target(
     mut ai_units: Query<(Entity, &mut Unit, &GridPosition, &Attack), With<Ai>>,
     mut player_units: Query<(Entity, &GridPosition, &Transform, &mut Health), With<Player>>,
@@ -419,8 +429,9 @@ fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
 impl Plugin for AiUnitsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WaveIndex>()
-            .add_startup_system(make_units)
+            .add_startup_system(spawn_wave)
             .add_startup_system(setup_active)
+            .add_system_set(SystemSet::on_enter(TurnPhase::AiSpawnWave).with_system(spawn_wave))
             .add_system_set(SystemSet::on_update(TurnPhase::AIDoMove).with_system(move_active_unit))
             .add_system_set(SystemSet::on_update(TurnPhase::AISelectMove).with_system(select_move))
             .add_system_set(
@@ -434,10 +445,15 @@ impl Plugin for AiUnitsPlugin {
                     .with_system(select_attacker.after(check_enemy_has_attacked)),
             )
             .add_system_set(
-                SystemSet::on_update(TurnPhase::AISelectTarget).with_system(select_target),
+                SystemSet::on_update(TurnPhase::AISelectTarget)
+                    .with_system(check_remaining_units)
+                    .with_system(select_target),
             )
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::AISelectUnit).with_system(clear_active_unit),
+            )
+            .add_system_set(
+                SystemSet::on_update(TurnPhase::SelectAttacker).with_system(check_remaining_units),
             );
     }
 }

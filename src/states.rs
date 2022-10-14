@@ -6,6 +6,7 @@ pub enum TurnPhase {
     SelectAttacker,
     SelectTarget,
 
+    AiSpawnWave,
     AISelectUnit,
     AISelectMove,
     AIDoMove,

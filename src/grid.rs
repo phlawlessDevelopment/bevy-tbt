@@ -282,7 +282,7 @@ impl Plugin for GridPlugin {
                 tile_size: 64.0,
                 rows_cols: 9,
             })
-            .add_startup_system(create_level.before(crate::ai_units::make_units))
+            .add_startup_system(create_level.before(crate::ai_units::spawn_wave))
             .add_system_set(
                 SystemSet::on_enter(TurnPhase::SelectAttacker)
                     .with_system(clear_highlighted_tiles)
