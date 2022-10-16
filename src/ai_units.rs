@@ -105,17 +105,7 @@ fn spawn_unit(
         .with_children(|parent| {
             parent.spawn_bundle(SpriteBundle {
                 texture: asset_server.load(sprite_path),
-                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0))
-                    .with_scale(Vec3::new(0.75, 0.75, 1.0)),
-                sprite: Sprite {
-                    color: Color::Rgba {
-                        red: 0.85,
-                        green: 0.0,
-                        blue: 0.0,
-                        alpha: 1.0,
-                    },
-                    ..default()
-                },
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
                 ..default()
             });
         })

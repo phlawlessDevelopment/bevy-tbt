@@ -1,7 +1,0 @@
-{
-  "sprite": "fire.png",
-  "movement": 3,
-  "health": 4,
-  "damage": 1,
-  "range": 5
-}

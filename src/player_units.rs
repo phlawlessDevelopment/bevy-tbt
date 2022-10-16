@@ -85,16 +85,7 @@ fn spawn_unit(
         .with_children(|parent| {
             parent.spawn_bundle(SpriteBundle {
                 texture: asset_server.load(sprite_path),
-                transform: Transform::default().with_scale(Vec3::new(0.75, 0.75, 1.0)),
-                sprite: Sprite {
-                    color: Color::Rgba {
-                        red: 0.0,
-                        green: 0.25,
-                        blue: 0.0,
-                        alpha: 1.0,
-                    },
-                    ..default()
-                },
+                transform: Transform::from_translation(Vec3::new(0.0, 0.0, 5.0)),
                 ..default()
             });
         })
@@ -126,7 +117,11 @@ fn make_units(
     grid_config: Res<GridConfig>,
 ) {
     let mut units = Vec::new();
-    let sprites = ["sprites/crown.png", "sprites/sword.png", "sprites/fire.png"];
+    let sprites = [
+        "sprites/pirate_1.png",
+        "sprites/pirate_2.png",
+        "sprites/pirate_3.png",
+    ];
     let movements = [1, 5, 3];
     let healths = [20, 15, 10];
     let dmgs = [7, 3, 5];

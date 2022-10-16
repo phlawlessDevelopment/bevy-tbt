@@ -1,5 +1,5 @@
 {
-    "sprite":"sword.png",
+    "sprite":"zombie.png",
     "movement":4,
     "health":5,
     "damage":2,

@@ -1,11 +1,8 @@
 {
   "waves": [
     [
-      { "unit": "melee", "count": 1 }
-    ],
-    [
-      { "unit": "boss", "count": 1 },
-      { "unit": "ranged", "count": 5 }
+      { "unit": "skelly", "count": 2 },
+      { "unit": "zombie", "count": 2 }
     ]
   ]
 }
