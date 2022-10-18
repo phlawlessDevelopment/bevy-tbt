@@ -6,9 +6,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use rand::Rng;
-use std::{
-    collections::HashMap,
-};
+use std::collections::HashMap;
 pub struct GridPlugin;
 
 #[derive(Component, Debug)]
@@ -53,92 +51,98 @@ pub struct SelectedTile {
 
 fn highlight_selected_unit(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
-    selected: Res<SelectedUnit>,
+    selected_res: Res<SelectedUnit>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
 ) {
-    for (_t,_grid, mut sprite) in tiles.iter_mut() {
-        if sprite.color.a() == 0.1 {
-            sprite.color.set_r(1.0);
-            sprite.color.set_g(1.0);
-            sprite.color.set_b(1.0);
-            sprite.color.set_a(1.0);
+    match selected_res.value {
+        Some(selected) => {
+            for (_t, _grid, mut sprite) in tiles.iter_mut() {
+                if sprite.color.a() == 0.1 {
+                    sprite.color.set_r(1.0);
+                    sprite.color.set_g(1.0);
+                    sprite.color.set_b(1.0);
+                    sprite.color.set_a(1.0);
+                }
+            }
+            match unit_grids.get(selected) {
+                Ok((_e, grid)) => {
+                    if let Some((_tile, _grid, mut sprite)) = tiles
+                        .iter_mut()
+                        .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
+                    {
+                        sprite.color.set_r(0.0);
+                        sprite.color.set_g(1.0);
+                        sprite.color.set_b(0.0);
+                        sprite.color.set_a(1.0);
+                    }
+                }
+                Err(_) => {}
+            }
         }
-    }
-    if let Some((_e, grid)) = unit_grids
-        .into_iter()
-        .find(|(e, _g)| e.id() == selected.value)
-    {
-        if let Some((_tile,_grid, mut sprite)) = tiles
-            .iter_mut()
-            .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
-        {
-            sprite.color.set_r(0.0);
-            sprite.color.set_g(1.0);
-            sprite.color.set_b(0.0);
-            sprite.color.set_a(1.0);
-        }
+        None => {}
     }
 }
 fn highlight_attackable_tiles(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     ai_units: Query<(Entity, &GridPosition), (With<Health>, Without<Player>)>,
     player_units: Query<(Entity, &Attack, &Player, &GridPosition)>,
-    active: Res<ActiveUnit>,
+    active_res: Res<ActiveUnit>,
 ) {
-    let active = active.as_ref();
-
-    if let Some((_e, attack, _player, active_grid)) = player_units
-        .into_iter()
-        .find(|(e, _a, _p, _g)| e.id() == active.value)
-    {
-        for (_e, grid) in ai_units.into_iter() {
-            let dist = std::cmp::max(
-                i32::abs(grid.x - active_grid.x),
-                i32::abs(grid.y - active_grid.y),
-            );
-            if dist > 0 && dist <= attack.range {
-                if let Some((_tile, _grid, mut sprite)) = tiles
-                    .iter_mut()
-                    .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
-                {
-                    sprite.color.set_b(0.0);
-                    sprite.color.set_g(0.0);
-                    sprite.color.set_a(1.0);
+    match active_res.value {
+        Some(active) => match player_units.get(active) {
+            Ok((_e, attack, _player, active_grid)) => {
+                for (_e, grid) in ai_units.into_iter() {
+                    let dist = std::cmp::max(
+                        i32::abs(grid.x - active_grid.x),
+                        i32::abs(grid.y - active_grid.y),
+                    );
+                    if dist > 0 && dist <= attack.range {
+                        if let Some((_tile, _grid, mut sprite)) = tiles
+                            .iter_mut()
+                            .find(|(_t, g, _s)| g.x == grid.x && g.y == grid.y)
+                        {
+                            sprite.color.set_b(0.0);
+                            sprite.color.set_g(0.0);
+                            sprite.color.set_a(1.0);
+                        }
+                    }
                 }
             }
-        }
+            Err(_) => {}
+        },
+        None => {}
     }
 }
 fn highlight_reachable_tiles(
     mut tiles: Query<(&mut Tile, &GridPosition, &mut Sprite), With<Tile>>,
     unit_grids: Query<(Entity, &GridPosition), Without<Tile>>,
     movements: Query<(Entity, &Movement)>,
-    active: Res<ActiveUnit>,
-    blocked: Res<BlockedTiles>,
+    active_res: Res<ActiveUnit>,
+    blocked_res: Res<BlockedTiles>,
 ) {
-    let active = active.as_ref();
-
-    if let Some((_e, active_grid)) = unit_grids
-        .into_iter()
-        .find(|(e, _g)| e.id() == active.value)
-    {
-        if let Some((_e, active_movement)) =
-            movements.into_iter().find(|(e, _m)| e.id() == active.value)
-        {
-            for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile, grid, _s)| {
-                let dist = calculate_a_star_path(
-                    (active_grid.x, active_grid.y),
-                    (grid.x, grid.y),
-                    &blocked,
-                )
-                .len() as i32;
-                dist > 0 && dist <= active_movement.distance && !tile.blocked
-            }) {
-                sprite.color.set_r(0.0);
-                sprite.color.set_b(0.0);
-                sprite.color.set_a(1.0);
-            }
-        }
+    match active_res.value {
+        Some(active) => match unit_grids.get(active) {
+            Ok((_e, active_grid)) => match movements.get(active) {
+                Ok((_e, active_movement)) => {
+                    for (_tile, _grid, mut sprite) in tiles.iter_mut().filter(|(tile, grid, _s)| {
+                        let dist = calculate_a_star_path(
+                            (active_grid.x, active_grid.y),
+                            (grid.x, grid.y),
+                            &blocked_res,
+                        )
+                        .len() as i32;
+                        dist > 0 && dist <= active_movement.distance && !tile.blocked
+                    }) {
+                        sprite.color.set_r(0.0);
+                        sprite.color.set_b(0.0);
+                        sprite.color.set_a(1.0);
+                    }
+                }
+                Err(_) => {}
+            },
+            Err(_) => {}
+        },
+        None => {}
     }
 }
 

@@ -3,7 +3,7 @@ use priority_queue::PriorityQueue;
 
 use crate::grid::{BlockedTiles, GridPosition, SelectedPath, SelectedTile};
 use crate::states::TurnPhase;
-use crate::units::{Unit,ActiveUnit};
+use crate::units::{ActiveUnit, Unit};
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
@@ -95,16 +95,21 @@ fn a_star_initializer(
     units: Query<(Entity, &GridPosition), With<Unit>>,
     mut selected_path: ResMut<SelectedPath>,
     selected_tile: Res<SelectedTile>,
-    active: ResMut<ActiveUnit>,
+    active_res: ResMut<ActiveUnit>,
     blocked: Res<BlockedTiles>,
 ) {
-    let active = active.as_ref();
-    if let Some((_e, grid)) = units.into_iter().find(|(e, _g)| e.id() == active.value) {
-        selected_path.tiles = calculate_a_star_path(
-            (grid.x, grid.y),
-            (selected_tile.x, selected_tile.y),
-            &blocked,
-        );
+    match active_res.value {
+        Some(active) => match units.get(active) {
+            Ok((_e, grid)) => {
+                selected_path.tiles = calculate_a_star_path(
+                    (grid.x, grid.y),
+                    (selected_tile.x, selected_tile.y),
+                    &blocked,
+                );
+            }
+            Err(_) => {}
+        },
+        None => {}
     }
 }
 

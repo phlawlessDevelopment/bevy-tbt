@@ -34,11 +34,11 @@ pub struct Attack {
 }
 #[derive(Default, Debug)]
 pub struct ActiveUnit {
-    pub value: u32,
+    pub value: Option<Entity>,
 }
 #[derive(Default, Debug)]
 pub struct SelectedUnit {
-    pub value: u32,
+    pub value: Option<Entity>,
     pub grid: (i32, i32),
 }
 #[derive(Default, Debug)]
@@ -101,15 +101,15 @@ fn set_selected_unit(
                         <= min_dist
                 })
         {
-            selected.value = entity.id();
+            selected.value = entity.into();
             selected.grid = (grid.x, grid.y);
             let cur_phase = *phase.current();
             if !unit.has_acted && unit.team == Team::PLAYER {
                 if cur_phase == TurnPhase::SelectUnit {
-                    active.value = entity.id();
+                    active.value = entity.into();
                     phase.set(TurnPhase::SelectMove).unwrap();
                 } else if cur_phase == TurnPhase::SelectAttacker {
-                    active.value = entity.id();
+                    active.value = entity.into();
                     phase.set(TurnPhase::SelectTarget).unwrap();
                 }
                 mouse_input.reset(MouseButton::Left);

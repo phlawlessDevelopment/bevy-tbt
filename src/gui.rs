@@ -285,43 +285,61 @@ fn get_labels(mut texts: Query<(Entity, &mut Text)>, mut gui: ResMut<SelectedUni
 fn selected_unit(
     units: Query<(Entity, &Health, &Movement, &Unit, &Attack)>,
     mut texts: Query<(Entity, &mut Text)>,
-    selected: Res<SelectedUnit>,
+    selected_res: Res<SelectedUnit>,
     gui: Res<SelectedUnitGUI>,
 ) {
-    if let Some((_entity, health, movement, unit, attack)) = units
-        .iter()
-        .find(|(e, _h, _m, _u, _a)| e.id() == selected.value)
-    {
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.can_act == e.id()) {
-            text.sections[0].value =
-                format!("{}", if !unit.has_acted { "Can act" } else { "Acted" });
-        }
+    match selected_res.value {
+        Some(selected) => match units.get(selected) {
+            Ok((_entity, health, movement, unit, attack)) => {
+                if let Some((_entity, mut text)) =
+                    texts.iter_mut().find(|(e, _t)| gui.can_act == e.id())
+                {
+                    text.sections[0].value =
+                        format!("{}", if !unit.has_acted { "Can act" } else { "Acted" });
+                }
 
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.range == e.id()) {
-            text.sections[0].value = format!("{}", attack.range);
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health == e.id()) {
-            text.sections[0].value = format!("{}/{}", health.value, health.max);
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.movement == e.id()) {
-            text.sections[0].value = format!("{}", movement.distance);
-        }
-    } else {
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.range == e.id()) {
-            text.sections[0].value = "".to_string();
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.can_act == e.id()) {
-            text.sections[0].value = "".to_string();
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health == e.id()) {
-            text.sections[0].value = "".to_string();
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health_max == e.id())
-        {
-            text.sections[0].value = "".to_string();
-        }
-        if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.movement == e.id()) {
-            text.sections[0].value = "".to_string();
+                if let Some((_entity, mut text)) =
+                    texts.iter_mut().find(|(e, _t)| gui.range == e.id())
+                {
+                    text.sections[0].value = format!("{}", attack.range);
+                }
+                if let Some((_entity, mut text)) =
+                    texts.iter_mut().find(|(e, _t)| gui.health == e.id())
+                {
+                    text.sections[0].value = format!("{}/{}", health.value, health.max);
+                }
+                if let Some((_entity, mut text)) =
+                    texts.iter_mut().find(|(e, _t)| gui.movement == e.id())
+                {
+                    text.sections[0].value = format!("{}", movement.distance);
+                }
+            }
+            Err(_) => {}
+        },
+        None => {
+            if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.range == e.id())
+            {
+                text.sections[0].value = "".to_string();
+            }
+            if let Some((_entity, mut text)) =
+                texts.iter_mut().find(|(e, _t)| gui.can_act == e.id())
+            {
+                text.sections[0].value = "".to_string();
+            }
+            if let Some((_entity, mut text)) = texts.iter_mut().find(|(e, _t)| gui.health == e.id())
+            {
+                text.sections[0].value = "".to_string();
+            }
+            if let Some((_entity, mut text)) =
+                texts.iter_mut().find(|(e, _t)| gui.health_max == e.id())
+            {
+                text.sections[0].value = "".to_string();
+            }
+            if let Some((_entity, mut text)) =
+                texts.iter_mut().find(|(e, _t)| gui.movement == e.id())
+            {
+                text.sections[0].value = "".to_string();
+            }
         }
     }
 }

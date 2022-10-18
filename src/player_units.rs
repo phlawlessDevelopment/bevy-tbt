@@ -22,44 +22,46 @@ fn setup_active(mut commands: Commands) {
 fn move_active_unit(
     time: Res<Time>,
     mut selected_path: ResMut<SelectedPath>,
-    active: ResMut<ActiveUnit>,
+    active_res: ResMut<ActiveUnit>,
     mut player_units: Query<(Entity, &mut Transform, &mut GridPosition, &mut Unit), With<Player>>,
     mut phase: ResMut<State<TurnPhase>>,
     grid_config: Res<GridConfig>,
 ) {
-    let active = active.as_ref();
-    if let Some((_e, mut transform, mut grid, mut player)) = player_units
-        .iter_mut()
-        .find(|(e, _t, _g, _p)| e.id() == active.value)
-    {
-        let mut should_pop = false;
-        if let Some(next_tile) = selected_path.tiles.last() {
-            let direction = Vec3::new(
-                next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
-                next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
-                0.0,
-            ) - transform.translation;
+    match active_res.value {
+        Some(active) => match player_units.get_mut(active) {
+            Ok((_e, mut transform, mut grid, mut player)) => {
+                let mut should_pop = false;
+                if let Some(next_tile) = selected_path.tiles.last() {
+                    let direction = Vec3::new(
+                        next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
+                        next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
+                        0.0,
+                    ) - transform.translation;
 
-            if direction.length() > 1.0 {
-                transform.translation += direction.normalize() * time.delta_seconds() * 100.0;
-            } else {
-                transform.translation = Vec3::new(
-                    next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
-                    next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
-                    0.0,
-                );
-                grid.x = next_tile.0;
-                grid.y = next_tile.1;
-                should_pop = true;
+                    if direction.length() > 1.0 {
+                        transform.translation +=
+                            direction.normalize() * time.delta_seconds() * 100.0;
+                    } else {
+                        transform.translation = Vec3::new(
+                            next_tile.0 as f32 * grid_config.tile_size - grid_config.offset(),
+                            next_tile.1 as f32 * grid_config.tile_size - grid_config.offset(),
+                            0.0,
+                        );
+                        grid.x = next_tile.0;
+                        grid.y = next_tile.1;
+                        should_pop = true;
+                    }
+                } else {
+                    player.has_acted = true;
+                    phase.set(TurnPhase::SelectUnit).unwrap();
+                }
+                if should_pop {
+                    selected_path.tiles.pop();
+                }
             }
-        } else {
-            player.has_acted = true;
-            player.set_changed();
-            phase.set(TurnPhase::SelectUnit).unwrap();
-        }
-        if should_pop {
-            selected_path.tiles.pop();
-        }
+            Err(_) => {}
+        },
+        None => {}
     }
 }
 
@@ -203,43 +205,55 @@ fn select_move(
     tiles: Query<(&Tile, &GridPosition, &mut Transform)>,
     player_unit_grids: Query<(Entity, &GridPosition), With<Player>>,
     movements: Query<(Entity, &Movement)>,
-    active: Res<ActiveUnit>,
+    active_res: Res<ActiveUnit>,
     mut selected_tile: ResMut<SelectedTile>,
     mut phase: ResMut<State<TurnPhase>>,
     blocked: Res<BlockedTiles>,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
-        let mouse_pos = get_mouse_position(windows, q_camera);
-        //get closest
-        let min_dist = 32.0;
-        // let mut selection: Option<&Label> = None;
-        let selection = tiles.into_iter().find(|(_tile, _grid, transform)| {
-            mouse_pos.distance(Vec2::new(transform.translation.x, transform.translation.y))
-                <= min_dist
-        });
-        if let Some((_tile, grid, _transform)) = selection {
-            let active = active.as_ref();
-            if let Some((_e, active_grid)) = player_unit_grids
-                .into_iter()
-                .find(|(e, _g)| e.id() == active.value)
-            {
-                if let Some((_e, active_movement)) =
-                    movements.into_iter().find(|(e, _m)| e.id() == active.value)
-                {
-                    let dist = calculate_a_star_path(
-                        (active_grid.x, active_grid.y),
-                        (grid.x, grid.y),
-                        &blocked,
-                    )
-                    .len() as i32;
-                    if dist >= 1 && dist <= active_movement.distance {
-                        selected_tile.x = grid.x;
-                        selected_tile.y = grid.y;
-                        phase.set(TurnPhase::DoMove).unwrap();
-                        mouse_input.reset(MouseButton::Left);
+        match active_res.value {
+            Some(active) => {
+                match movements.get(active) {
+                    Ok((_e, active_movement)) => {
+                        match player_unit_grids.get(active) {
+                            Ok((_e, active_grid)) => {
+                                let mouse_pos = get_mouse_position(windows, q_camera);
+                                //get closest
+                                let min_dist = 32.0;
+                                // let mut selection: Option<&Label> = None;
+                                let selection =
+                                    tiles.into_iter().find(|(_tile, _grid, transform)| {
+                                        mouse_pos.distance(Vec2::new(
+                                            transform.translation.x,
+                                            transform.translation.y,
+                                        )) <= min_dist
+                                    });
+                                match selection {
+                                    Some((_tile, grid, _transform)) => {
+                                        let dist = calculate_a_star_path(
+                                            (active_grid.x, active_grid.y),
+                                            (grid.x, grid.y),
+                                            &blocked,
+                                        )
+                                        .len()
+                                            as i32;
+                                        if dist >= 1 && dist <= active_movement.distance {
+                                            selected_tile.x = grid.x;
+                                            selected_tile.y = grid.y;
+                                            phase.set(TurnPhase::DoMove).unwrap();
+                                            mouse_input.reset(MouseButton::Left);
+                                        }
+                                    }
+                                    None => {}
+                                }
+                            }
+                            Err(_) => {}
+                        }
                     }
+                    Err(_) => {}
                 }
             }
+            None => {}
         }
     }
 }
@@ -250,38 +264,48 @@ fn select_target(
     mut ai_units: Query<(Entity, &GridPosition, &Transform, &mut Health), With<Ai>>,
     mut player_units: Query<(Entity, &mut Unit, &GridPosition, &Attack), With<Player>>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    active: ResMut<ActiveUnit>,
+    active_res: ResMut<ActiveUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut commands: Commands,
 ) {
     if mouse_input.just_pressed(MouseButton::Left) {
-        let mouse_pos = get_mouse_position(windows, q_camera);
-        //get closest
-        let min_dist = 32.0;
-        if let Some((_active, mut active_player, active_grid, active_attack)) = player_units
-            .iter_mut()
-            .find(|(entity, _unit, _grid, _attack)| entity.id() == active.value)
-        {
-            let selection = ai_units.iter_mut().find(|(_e, grid, transform, _health)| {
-                let dist = std::cmp::max(
-                    i32::abs(grid.x - active_grid.x),
-                    i32::abs(grid.y - active_grid.y),
-                );
-                dist > 0
-                    && dist <= active_attack.range
-                    && mouse_pos
-                        .distance(Vec2::new(transform.translation.x, transform.translation.y))
-                        <= min_dist
-            });
-            if let Some((e, _g, _t, mut target_health)) = selection {
-                target_health.value -= active_attack.dmg;
-                if target_health.value <= 0 {
-                    commands.entity(e).despawn_recursive();
+        match active_res.value {
+            Some(active) => {
+                let mouse_pos = get_mouse_position(windows, q_camera);
+                //get closest
+                let min_dist = 32.0;
+                match player_units.get_mut(active) {
+                    Ok((_active, mut active_player, active_grid, active_attack)) => {
+                        let selection =
+                            ai_units.iter_mut().find(|(_e, grid, transform, _health)| {
+                                let dist = std::cmp::max(
+                                    i32::abs(grid.x - active_grid.x),
+                                    i32::abs(grid.y - active_grid.y),
+                                );
+                                dist > 0
+                                    && dist <= active_attack.range
+                                    && mouse_pos.distance(Vec2::new(
+                                        transform.translation.x,
+                                        transform.translation.y,
+                                    )) <= min_dist
+                            });
+                        match selection {
+                            Some((e, _g, _t, mut target_health)) => {
+                                target_health.value -= active_attack.dmg;
+                                if target_health.value <= 0 {
+                                    commands.entity(e).despawn_recursive();
+                                }
+                                active_player.has_acted = true;
+                                phase.set(TurnPhase::SelectAttacker).unwrap();
+                                mouse_input.clear();
+                            }
+                            None => {}
+                        }
+                    }
+                    Err(_) => todo!(),
                 }
-                active_player.has_acted = true;
-                phase.set(TurnPhase::SelectAttacker).unwrap();
-                mouse_input.clear();
             }
+            None => {}
         }
     }
 }
@@ -322,11 +346,11 @@ fn check_player_has_attacked(
 }
 
 fn clear_active_unit(mut active: ResMut<ActiveUnit>) {
-    active.value = 0;
+    active.value = None;
 }
 fn handle_keys(
-    mut active: ResMut<ActiveUnit>,
-    mut selected: ResMut<SelectedUnit>,
+    mut active_res: ResMut<ActiveUnit>,
+    mut selected_res: ResMut<SelectedUnit>,
     mut phase: ResMut<State<TurnPhase>>,
     mut key_input: ResMut<Input<KeyCode>>,
     mut player_units: Query<(Entity, &mut Unit), With<Player>>,
@@ -336,40 +360,42 @@ fn handle_keys(
         match phase.current() {
             TurnPhase::SelectMove => {
                 phase.set(TurnPhase::SelectUnit).unwrap();
-                active.value = 0;
+                active_res.value = None;
             }
             TurnPhase::SelectTarget => {
                 phase.set(TurnPhase::SelectAttacker).unwrap();
-                active.value = 0;
+                active_res.value = None;
             }
             _ => {}
         }
         clear_highlighted_tiles_func(&mut tiles);
-        selected.value = 0;
+        selected_res.value = None;
         key_input.clear();
     }
     if key_input.just_pressed(KeyCode::Space) {
         match phase.current() {
-            TurnPhase::SelectMove => {
-                if let Some((_entity, mut unit)) = player_units
-                    .iter_mut()
-                    .find(|(e, _u)| e.id() == active.value)
-                {
-                    unit.has_acted = true;
-                    active.value = 0;
-                }
-                phase.set(TurnPhase::SelectUnit).unwrap();
-            }
-            TurnPhase::SelectTarget => {
-                if let Some((_entity, mut unit)) = player_units
-                    .iter_mut()
-                    .find(|(e, _u)| e.id() == active.value)
-                {
-                    unit.has_acted = true;
-                    active.value = 0;
-                }
-                phase.set(TurnPhase::SelectAttacker).unwrap();
-            }
+            TurnPhase::SelectMove => match active_res.value {
+                Some(active) => match player_units.get_mut(active) {
+                    Ok((_entity, mut unit)) => {
+                        unit.has_acted = true;
+                        active_res.value = None;
+                        phase.set(TurnPhase::SelectUnit).unwrap();
+                    }
+                    Err(_) => {}
+                },
+                None => todo!(),
+            },
+            TurnPhase::SelectTarget => match active_res.value {
+                Some(active) => match player_units.get_mut(active) {
+                    Ok((_entity, mut unit)) => {
+                        unit.has_acted = true;
+                        active_res.value = None;
+                        phase.set(TurnPhase::SelectAttacker).unwrap();
+                    }
+                    Err(_) => {}
+                },
+                None => todo!(),
+            },
             TurnPhase::SelectUnit => phase.set(TurnPhase::SelectAttacker).unwrap(),
             TurnPhase::DoMove => {}
             TurnPhase::SelectAttacker => phase.set(TurnPhase::AISelectUnit).unwrap(),
