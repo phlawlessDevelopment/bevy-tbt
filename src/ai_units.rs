@@ -2,7 +2,7 @@ use crate::grid::{BlockedTiles, GridConfig, GridPosition, SelectedPath, Selected
 use crate::pathfinding::{calculate_a_star_path, AllUnitsActed};
 use crate::player_units::Player;
 use crate::states::TurnPhase;
-use crate::units::{self, ActiveUnit, Attack, Health, Movement, Spawners, Team, Unit};
+use crate::units::{ActiveUnit, Attack, Health, Movement, Spawners, Team, Unit};
 
 use bevy::prelude::*;
 use rand::Rng;
